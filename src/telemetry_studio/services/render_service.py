@@ -598,6 +598,14 @@ class RenderService:
         if bin_script.exists():
             return bin_script
 
+        # Check same directory as Python executable (pipx/venv installs)
+        import sys
+
+        python_bin_dir = Path(sys.executable).parent
+        venv_script = python_bin_dir / "gopro-dashboard.py"
+        if venv_script.exists():
+            return venv_script
+
         # Check PATH
         import shutil
 

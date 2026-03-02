@@ -53,6 +53,12 @@ def find_gopro_dashboard() -> Path | None:
     if bin_script.exists():
         return bin_script
 
+    # Check same directory as Python executable (pipx/venv installs)
+    python_bin_dir = Path(sys.executable).parent
+    venv_script = python_bin_dir / "gopro-dashboard.py"
+    if venv_script.exists():
+        return venv_script
+
     # Check PATH
     path_script = shutil.which("gopro-dashboard.py")
     if path_script:
