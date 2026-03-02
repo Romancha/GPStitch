@@ -146,15 +146,17 @@ export TELEMETRY_STUDIO_USE_WRAPPER_SCRIPT=false
 # Install with dev dependencies
 uv sync --all-extras
 
-# Run linting
+# Linting and formatting
 uv run ruff check src tests
 uv run ruff format src tests
 
 # Run tests
 uv run pytest
 
-# Run E2E tests (requires Playwright)
-uv run playwright install chromium
+# Run all checks (lint + format + tests)
+uv run ruff check src tests && uv run ruff format --check src tests && uv run pytest
+
+# Run E2E tests (requires: uv run playwright install chromium)
 uv run pytest tests/e2e/ -v
 ```
 
