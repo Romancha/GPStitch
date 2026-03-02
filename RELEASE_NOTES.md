@@ -1,5 +1,15 @@
 # Release Notes
 
+## Version 0.6.2 — 02 Mar 2026
+
+### ✨ Improvements
+
+- Added CI pipeline with lint, unit/integration tests, and E2E tests on GitHub Actions
+- Publish workflow gates release on passing tests before uploading to PyPI
+- Screenshot images now render correctly on PyPI project page
+
+---
+
 ## Version 0.6.1 — 02 Mar 2026
 
 ### 🆕 New
