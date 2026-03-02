@@ -38,6 +38,10 @@ Use DJI drone videos with SRT telemetry files. Timezone offset and time alignmen
 
 ![DJI Drone Support](docs/images/dji_drone.jpg)
 
+Camera metrics (ISO, shutter, f-number, EV, color temperature) from SRT files are displayed directly on the video overlay.
+
+![DJI Drone Overlay](docs/images/dji_drone_screen_from_video.jpg)
+
 ### External GPX & Vertical Video
 
 Use any video with external GPX/FIT files. Vertical videos are automatically detected and rendered correctly.
