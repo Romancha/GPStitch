@@ -1,8 +1,10 @@
-name: Publish to PyPI
+name: CI
 
 on:
-  release:
-    types: [published]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   lint:
@@ -27,19 +29,3 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -m "not e2e" --tb=short
-
-  publish:
-    needs: [lint, test]
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-
-      - name: Build package
-        run: uv build
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1

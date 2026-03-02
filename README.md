@@ -24,37 +24,37 @@ A visual web interface for creating video overlays with GPS telemetry data. Wrap
 
 Simple configuration with predefined layouts. Perfect for quick renders.
 
-![Quick Mode](docs/images/quick_mode.jpg)
+![Quick Mode](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/quick_mode.jpg)
 
 ### Advanced Mode
 
 Full visual editor with drag-and-drop widgets. Create custom layouts with complete control.
 
-![Advanced Mode](docs/images/advanced_mode.jpg)
+![Advanced Mode](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/advanced_mode.jpg)
 
 ### DJI Drone Support
 
 Use DJI drone videos with SRT telemetry files. Timezone offset and time alignment are automatically detected from video metadata, supporting different DJI models and firmware versions.
 
-![DJI Drone Support](docs/images/dji_drone.jpg)
+![DJI Drone Support](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/dji_drone.jpg)
 
 Camera metrics (ISO, shutter, f-number, EV, color temperature) from SRT files are displayed directly on the video overlay.
 
-![DJI Drone Overlay](docs/images/dji_drone_screen_from_video.jpg)
+![DJI Drone Overlay](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/dji_drone_screen_from_video.jpg)
 
 ### External GPX & Vertical Video
 
 Use any video with external GPX/FIT files. Vertical videos are automatically detected and rendered correctly.
 
-![External GPX & Vertical Video](docs/images/external_gpx_vertical.jpg)
+![External GPX & Vertical Video](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/external_gpx_vertical.jpg)
 
 ### Batch Rendering
 
 Process multiple videos at once with the same overlay settings.
 
 <p align="center">
-<img src="docs/images/batch_create.png" width="400" alt="Batch Create"/>
-<img src="docs/images/batch_progress.png" width="400" alt="Batch Progress"/>
+<img src="https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/batch_create.png" width="400" alt="Batch Create"/>
+<img src="https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/batch_progress.png" width="400" alt="Batch Progress"/>
 </p>
 
 ## Requirements
