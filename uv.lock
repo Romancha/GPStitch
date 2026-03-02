@@ -984,7 +984,7 @@ wheels = [
 
 [[package]]
 name = "telemetry-studio"
-version = "0.6.2"
+version = "0.6.3"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -992,6 +992,7 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
+    { name = "setuptools" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1023,6 +1024,7 @@ requires-dist = [
     { name = "pytest-playwright", marker = "extra == 'dev'", specifier = ">=0.7.2" },
     { name = "python-multipart", specifier = ">=0.0.22" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.14" },
+    { name = "setuptools" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
 ]
 provides-extras = ["dev"]

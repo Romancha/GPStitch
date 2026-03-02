@@ -1,5 +1,13 @@
 # Release Notes
 
+## Version 0.6.3 — 02 Mar 2026
+
+### 🐞 Fixes
+
+- Fixed startup crash when installed via pipx on Python 3.14 (missing `pkg_resources`)
+
+---
+
 ## Version 0.6.2 — 02 Mar 2026
 
 ### ✨ Improvements

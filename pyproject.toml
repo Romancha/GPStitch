@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "telemetry-studio"
-version = "0.6.2"
+version = "0.6.3"
 description = "Web UI for telemetry video overlay configuration and preview"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
@@ -27,6 +27,7 @@ dependencies = [
     "python-multipart>=0.0.22",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
+    "setuptools",
 ]
 
 [project.optional-dependencies]
