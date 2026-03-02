@@ -66,14 +66,10 @@ class GPSQualityReport(BaseModel):
 
     # Overall assessment
     quality_score: GPSQualityScore = Field(description="Overall quality rating")
-    usable_percentage: float = Field(
-        description="Percentage of points with acceptable quality (DOP < 10)"
-    )
+    usable_percentage: float = Field(description="Percentage of points with acceptable quality (DOP < 10)")
 
     # User guidance
-    warnings: list[str] = Field(
-        default_factory=list, description="Warning messages for the user"
-    )
+    warnings: list[str] = Field(default_factory=list, description="Warning messages for the user")
 
 
 class FileInfo(BaseModel):

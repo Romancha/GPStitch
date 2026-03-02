@@ -81,7 +81,7 @@ DEFAULT_GPS_TARGET_HZ = 1  # Target GPS sampling rate in Hz (1 = 1 point/sec)
 # https://gisgeography.com/gps-accuracy-hdop-pdop-gdop-multipath/
 
 DOP_THRESHOLD_EXCELLENT = 2.0  # DOP < 2: Ideal for precise tracking
-DOP_THRESHOLD_GOOD = 5.0       # DOP 2-5: Suitable for most applications
+DOP_THRESHOLD_GOOD = 5.0  # DOP 2-5: Suitable for most applications
 DOP_THRESHOLD_MODERATE = 10.0  # DOP 5-10: Acceptable, some accuracy loss
 # DOP > 10: Poor/unreliable positioning
 # DOP = 99.99: No GPS signal (GoPro default when no lock)

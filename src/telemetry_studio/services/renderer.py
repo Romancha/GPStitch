@@ -172,9 +172,7 @@ def _format_display_name(name: str) -> str:
     display = name.replace("_", " ").replace("-", " ")
     # Capitalize words, keeping known abbreviations uppercase
     words = display.split()
-    return " ".join(
-        w.upper() if w.lower() in _UPPERCASE_WORDS else w.title() for w in words
-    )
+    return " ".join(w.upper() if w.lower() in _UPPERCASE_WORDS else w.title() for w in words)
 
 
 def _resolve_layout_path(layout: str) -> Path:

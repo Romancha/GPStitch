@@ -298,7 +298,15 @@ class TestExtractSrtArgs:
         monkeypatch.setattr(
             sys,
             "argv",
-            ["script", "--ts-srt-source", "/path/to/file.srt", "--ts-srt-video", "/path/to/video.mp4", "--gpx", "t.gpx"],
+            [
+                "script",
+                "--ts-srt-source",
+                "/path/to/file.srt",
+                "--ts-srt-video",
+                "/path/to/video.mp4",
+                "--gpx",
+                "t.gpx",
+            ],
         )
         srt_path, video_path = _extract_srt_args()
         assert srt_path == "/path/to/file.srt"
@@ -321,7 +329,9 @@ class TestExtractSrtArgs:
 
         from telemetry_studio.scripts.gopro_dashboard_wrapper import _extract_srt_args
 
-        monkeypatch.setattr(sys, "argv", ["script", "--gpx", "t.gpx", "--ts-srt-source", "/a.srt", "--ts-srt-video", "/v.mp4"])
+        monkeypatch.setattr(
+            sys, "argv", ["script", "--gpx", "t.gpx", "--ts-srt-source", "/a.srt", "--ts-srt-video", "/v.mp4"]
+        )
         srt_path, video_path = _extract_srt_args()
         assert srt_path == "/a.srt"
         assert video_path == "/v.mp4"

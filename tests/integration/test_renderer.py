@@ -451,9 +451,7 @@ class TestVerticalVideoRender:
             timeout=300,  # 5 minutes max for short video
         )
 
-        assert result.returncode == 0, (
-            f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
-        )
+        assert result.returncode == 0, f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
         assert output_file.exists(), "Output file was not created"
         assert output_file.stat().st_size > 0, "Output file is empty"
 
@@ -534,11 +532,20 @@ class TestVerticalVideoRender:
 
         ffmpeg_result = subprocess.run(
             [
-                "ffmpeg", "-y",
-                "-i", str(video_copy),
-                "-vf", vf,
-                "-c:a", "copy",
-                "-c:v", "libx264", "-preset", "ultrafast", "-crf", "18",
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(video_copy),
+                "-vf",
+                vf,
+                "-c:a",
+                "copy",
+                "-c:v",
+                "libx264",
+                "-preset",
+                "ultrafast",
+                "-crf",
+                "18",
                 str(pillarboxed_video),
             ],
             capture_output=True,
@@ -592,16 +599,16 @@ class TestVerticalVideoRender:
             timeout=300,
         )
 
-        assert result.returncode == 0, (
-            f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
-        )
+        assert result.returncode == 0, f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
         assert output_file.exists(), "Output file was not created"
 
         # Step 4: Verify output is 3840x2160
         probe_result = subprocess.run(
             [
-                "ffprobe", "-hide_banner",
-                "-print_format", "json",
+                "ffprobe",
+                "-hide_banner",
+                "-print_format",
+                "json",
                 "-show_streams",
                 str(output_file),
             ],
@@ -663,6 +670,4 @@ class TestVerticalVideoRender:
         # Center should NOT be black (video content)
         center_pixel = image.getpixel((1920, 1080))
         pixel_sum = center_pixel[0] + center_pixel[1] + center_pixel[2]
-        assert pixel_sum > 30, (
-            f"Center should have video content (not pure black), got {center_pixel}"
-        )
+        assert pixel_sum > 30, f"Center should have video content (not pure black), got {center_pixel}"

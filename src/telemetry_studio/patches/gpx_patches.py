@@ -58,10 +58,7 @@ def patch_gpx_load_for_srt(srt_path: str, video_path: str | None = None) -> None
             points = [dc_replace(p, dt=(p.dt - tz_offset).replace(tzinfo=UTC)) for p in points]
             logger.info(f"SRT patch: adjusted timestamps by {tz_offset} (mtime_role={mtime_role})")
 
-    logger.info(
-        f"SRT patch: {srt_filepath.name}, {len(points)} points, "
-        f"{source_hz:.1f}fps, sample_rate={sample_rate}"
-    )
+    logger.info(f"SRT patch: {srt_filepath.name}, {len(points)} points, {source_hz:.1f}fps, sample_rate={sample_rate}")
 
     _original = loading_module.load_external
 

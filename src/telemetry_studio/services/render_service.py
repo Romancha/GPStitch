@@ -63,7 +63,9 @@ class RenderService:
             # Try with namespace first, then without
             time_elem = root.find(".//gpx:trkpt/gpx:time", ns)
             if time_elem is None:
-                time_elem = root.find(".//{http://www.topografix.com/GPX/1/1}trkpt/{http://www.topografix.com/GPX/1/1}time")
+                time_elem = root.find(
+                    ".//{http://www.topografix.com/GPX/1/1}trkpt/{http://www.topografix.com/GPX/1/1}time"
+                )
             if time_elem is None:
                 # Try without namespace
                 time_elem = root.find(".//trkpt/time")
@@ -307,9 +309,7 @@ class RenderService:
                                 "Set pillarbox file mtime for time alignment",
                             )
                     # Replace video path in command with pillarboxed version
-                    command = command.replace(
-                        shlex.quote(primary.file_path), shlex.quote(pillarbox_temp_file)
-                    )
+                    command = command.replace(shlex.quote(primary.file_path), shlex.quote(pillarbox_temp_file))
 
         # Parse command into args
         try:

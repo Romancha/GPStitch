@@ -47,9 +47,7 @@ def analyze_gps_quality(file_path: Path) -> GPSQualityReport | None:
         loader = GoproLoader(
             ffmpeg_gopro=ffmpeg_gopro,
             units=units,
-            gps_lock_filter=gps_filter_standard(
-                dop_max=100, speed_max=units.Quantity(500, units.kph)
-            ),
+            gps_lock_filter=gps_filter_standard(dop_max=100, speed_max=units.Quantity(500, units.kph)),
         )
 
         gopro = loader.load(file_path)
@@ -65,11 +63,7 @@ def analyze_gps_quality(file_path: Path) -> GPSQualityReport | None:
 
             # Extract DOP value
             if entry.dop is not None:
-                dop_val = (
-                    entry.dop.magnitude
-                    if hasattr(entry.dop, "magnitude")
-                    else float(entry.dop)
-                )
+                dop_val = entry.dop.magnitude if hasattr(entry.dop, "magnitude") else float(entry.dop)
                 dop_values.append(dop_val)
 
             # Check GPS lock status (2=2D lock, 3=3D lock)
@@ -152,9 +146,7 @@ def _analyze_timeseries_quality(timeseries) -> GPSQualityReport:
             locked_points += 1
 
         if entry.dop is not None:
-            dop_val = (
-                entry.dop.magnitude if hasattr(entry.dop, "magnitude") else float(entry.dop)
-            )
+            dop_val = entry.dop.magnitude if hasattr(entry.dop, "magnitude") else float(entry.dop)
             dop_values.append(dop_val)
 
     if dop_values:
@@ -187,9 +179,7 @@ def _analyze_timeseries_quality(timeseries) -> GPSQualityReport:
     )
 
 
-def _build_report(
-    total_points: int, locked_points: int, dop_values: list[float]
-) -> GPSQualityReport:
+def _build_report(total_points: int, locked_points: int, dop_values: list[float]) -> GPSQualityReport:
     """Build GPS quality report from collected data."""
 
     # Handle empty data
@@ -219,12 +209,8 @@ def _build_report(
 
     # Count points by quality bucket
     excellent_count = sum(1 for d in dop_values if d < DOP_THRESHOLD_EXCELLENT)
-    good_count = sum(
-        1 for d in dop_values if DOP_THRESHOLD_EXCELLENT <= d < DOP_THRESHOLD_GOOD
-    )
-    moderate_count = sum(
-        1 for d in dop_values if DOP_THRESHOLD_GOOD <= d < DOP_THRESHOLD_MODERATE
-    )
+    good_count = sum(1 for d in dop_values if DOP_THRESHOLD_EXCELLENT <= d < DOP_THRESHOLD_GOOD)
+    moderate_count = sum(1 for d in dop_values if DOP_THRESHOLD_GOOD <= d < DOP_THRESHOLD_MODERATE)
     poor_count = sum(1 for d in dop_values if d >= DOP_THRESHOLD_MODERATE)
 
     # Calculate usable percentage (DOP < 10)
@@ -232,14 +218,10 @@ def _build_report(
     usable_percentage = (usable_count / len(dop_values) * 100) if dop_values else 0.0
 
     # Determine overall quality score
-    quality_score = _determine_quality_score(
-        lock_rate, dop_mean, usable_percentage, dop_values
-    )
+    quality_score = _determine_quality_score(lock_rate, dop_mean, usable_percentage, dop_values)
 
     # Generate warnings
-    warnings = _generate_warnings(
-        quality_score, lock_rate, dop_mean, usable_percentage, total_points
-    )
+    warnings = _generate_warnings(quality_score, lock_rate, dop_mean, usable_percentage, total_points)
 
     return GPSQualityReport(
         total_points=total_points,

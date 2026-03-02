@@ -117,7 +117,8 @@ class TestRenderServiceFullPipeline:
             [
                 "ffprobe",
                 "-hide_banner",
-                "-print_format", "json",
+                "-print_format",
+                "json",
                 "-show_streams",
                 str(output_file),
             ],

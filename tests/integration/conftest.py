@@ -1,8 +1,14 @@
 """Integration test fixtures."""
 
+import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
+
+# Original mtime of DJI test video (git clone does not preserve file timestamps).
+# Value from: DJI_20250721102743_0001_D.MP4 recorded 2025-07-21, mtime = end of recording.
+_DJI_VIDEO_ORIGINAL_MTIME = datetime(2025, 7, 21, 7, 27, 45, tzinfo=UTC).timestamp()
 
 
 @pytest.fixture(scope="module")
@@ -46,6 +52,8 @@ def integration_test_dji_video():
     path = Path(TEST_DJI_VIDEO_PATH)
     if not path.exists():
         pytest.skip(f"Integration test DJI video not found: {path}")
+    # Restore original mtime that git clone does not preserve
+    os.utime(path, (_DJI_VIDEO_ORIGINAL_MTIME, _DJI_VIDEO_ORIGINAL_MTIME))
     return path
 
 

@@ -28,9 +28,9 @@ def get_video_rotation(file_path: Path) -> int:
 
     try:
         ffmpeg = FFMPEG()
-        output = ffmpeg.ffprobe().invoke(
-            ["-hide_banner", "-print_format", "json", "-show_streams", str(file_path)]
-        ).stdout
+        output = (
+            ffmpeg.ffprobe().invoke(["-hide_banner", "-print_format", "json", "-show_streams", str(file_path)]).stdout
+        )
         data = json.loads(str(output))
         for stream in data.get("streams", []):
             if stream.get("codec_type") == "video":
@@ -68,9 +68,7 @@ def extract_video_metadata(file_path: Path) -> VideoMetadata | None:
         has_gps = recording.data is not None
 
         rotation = get_video_rotation(file_path)
-        display_w, display_h = get_display_dimensions(
-            video.dimension.x, video.dimension.y, rotation
-        )
+        display_w, display_h = get_display_dimensions(video.dimension.x, video.dimension.y, rotation)
 
         return VideoMetadata(
             width=display_w,

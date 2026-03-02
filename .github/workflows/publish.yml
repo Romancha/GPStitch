@@ -32,7 +32,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run tests
-        run: uv run pytest -m "not e2e and not integration" --tb=short
+        run: uv run pytest -m "not e2e" --tb=short
 
   publish:
     needs: [lint, test]

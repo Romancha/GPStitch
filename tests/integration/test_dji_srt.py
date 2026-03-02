@@ -143,9 +143,7 @@ class TestDjiSrtToGpxConversion:
 class TestDjiSrtTimezoneOffset:
     """Test timezone offset estimation between SRT local time and video UTC mtime."""
 
-    def test_estimate_tz_offset_returns_nonzero(
-        self, integration_test_dji_srt, integration_test_dji_video
-    ):
+    def test_estimate_tz_offset_returns_nonzero(self, integration_test_dji_srt, integration_test_dji_video):
         """Timezone offset should be detected from video mtime vs SRT timestamps."""
         from telemetry_studio.services.srt_parser import estimate_tz_offset
 
@@ -181,7 +179,9 @@ class TestDjiSrtTimezoneOffset:
 
         # Corrected SRT timestamp should be within 2 seconds of video mtime
         diff = abs((corrected - mtime_naive).total_seconds())
-        assert diff < 2.0, f"Corrected timestamp {corrected} too far from mtime {mtime_naive}: {diff}s (mtime_role={mtime_role})"
+        assert diff < 2.0, (
+            f"Corrected timestamp {corrected} too far from mtime {mtime_naive}: {diff}s (mtime_role={mtime_role})"
+        )
 
 
 @pytest.mark.integration
@@ -208,9 +208,7 @@ class TestDjiSrtTimeseries:
 class TestDjiSrtPreviewRender:
     """Render preview images using DJI video + SRT telemetry."""
 
-    def test_render_preview_dji_video_with_srt(
-        self, integration_test_dji_video, integration_test_dji_srt
-    ):
+    def test_render_preview_dji_video_with_srt(self, integration_test_dji_video, integration_test_dji_srt):
         """Render preview with DJI video + SRT as external telemetry source."""
         from telemetry_studio.services.renderer import render_preview
 
@@ -289,9 +287,7 @@ class TestDjiSrtCliCommand:
         has_time_end = "--video-time-end file-modified" in cmd
         assert has_time_start or has_time_end, f"Expected --video-time-start or --video-time-end in: {cmd}"
 
-    def test_cli_command_srt_primary_only(
-        self, clean_file_manager, integration_test_dji_srt, monkeypatch
-    ):
+    def test_cli_command_srt_primary_only(self, clean_file_manager, integration_test_dji_srt, monkeypatch):
         """CLI command for SRT-only mode should convert to GPX and use --use-gpx-only."""
         from telemetry_studio.services import file_manager as fm_module
         from telemetry_studio.services.renderer import generate_cli_command
@@ -434,9 +430,7 @@ class TestDjiSrtFullRender:
             timeout=300,
         )
 
-        assert result.returncode == 0, (
-            f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
-        )
+        assert result.returncode == 0, f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
         assert output_file.exists(), "Output file was not created"
         assert output_file.stat().st_size > 0, "Output file is empty"
 
@@ -445,7 +439,8 @@ class TestDjiSrtFullRender:
             [
                 "ffprobe",
                 "-hide_banner",
-                "-print_format", "json",
+                "-print_format",
+                "json",
                 "-show_streams",
                 str(output_file),
             ],
