@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from telemetry_studio.models.job import JobStatus
+from gpstitch.models.job import JobStatus
 
 
 class TestJobManagerCreate:
@@ -316,7 +316,7 @@ class TestJobManagerPersistence:
 
     async def test_job_survives_restart(self, clean_job_manager, sample_job_config, temp_dir):
         """Jobs should be loadable after simulated restart."""
-        from telemetry_studio.services.job_manager import JobManager
+        from gpstitch.services.job_manager import JobManager
 
         job = await clean_job_manager.create_job(sample_job_config)
         job_id = job.id
@@ -331,7 +331,7 @@ class TestJobManagerPersistence:
 
     async def test_running_job_marked_failed_on_restart(self, clean_job_manager, sample_job_config, temp_dir):
         """Running jobs should be marked as failed on restart."""
-        from telemetry_studio.services.job_manager import JobManager
+        from gpstitch.services.job_manager import JobManager
 
         job = await clean_job_manager.create_job(sample_job_config)
         await clean_job_manager.update_job_status(job.id, JobStatus.RUNNING)

@@ -12,21 +12,21 @@ class TestApplyPatches:
 
     def test_apply_patches_succeeds(self):
         """Test that apply_patches() can be called without error."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         # Should not raise
         apply_patches()
 
     def test_is_patched_returns_true_after_apply(self):
         """Test that is_patched() returns True after applying patches."""
-        from telemetry_studio.patches import apply_patches, is_patched
+        from gpstitch.patches import apply_patches, is_patched
 
         apply_patches()
         assert is_patched() is True
 
     def test_apply_patches_idempotent(self):
         """Test that apply_patches() can be called multiple times safely."""
-        from telemetry_studio.patches import apply_patches, is_patched
+        from gpstitch.patches import apply_patches, is_patched
 
         apply_patches()
         assert is_patched() is True
@@ -41,7 +41,7 @@ class TestFFMPEGGoProPatch:
 
     def test_find_timecode_method_added(self):
         """Test that FFMPEGGoPro.find_timecode method is added."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -52,7 +52,7 @@ class TestFFMPEGGoProPatch:
 
     def test_find_timecode_extracts_timecode(self):
         """Test that find_timecode extracts timecode from ffprobe output."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -78,7 +78,7 @@ class TestFFMPEGGoProPatch:
 
     def test_find_timecode_returns_none_when_no_timecode(self):
         """Test that find_timecode returns None when no timecode in metadata."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -99,7 +99,7 @@ class TestFFMPEGGoProPatch:
 
     def test_find_timecode_returns_none_on_empty_streams(self):
         """Test that find_timecode returns None when streams are empty."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -119,7 +119,7 @@ class TestFFMPEGGoProPatch:
 
     def test_find_timecode_handles_exception(self):
         """Test that find_timecode handles exceptions gracefully."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -141,7 +141,7 @@ class TestFFMPEGOverlayVideoPatch:
 
     def test_patched_marker_set(self):
         """Test that _ts_patched marker is set after patching."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -152,7 +152,7 @@ class TestFFMPEGOverlayVideoPatch:
 
     def test_init_accepts_timecode_parameter(self):
         """Test that FFMPEGOverlayVideo.__init__ accepts timecode parameter."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -163,7 +163,7 @@ class TestFFMPEGOverlayVideoPatch:
 
     def test_init_stores_timecode(self):
         """Test that FFMPEGOverlayVideo stores timecode in instance."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -185,7 +185,7 @@ class TestFFMPEGOverlayVideoPatch:
 
     def test_init_without_timecode(self):
         """Test that FFMPEGOverlayVideo works without timecode parameter."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -211,7 +211,7 @@ class TestMetricPatch:
 
     def test_custom_metrics_accessible_after_patch(self):
         """Test that DJI camera metrics are accessible after patching."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -223,7 +223,7 @@ class TestMetricPatch:
 
     def test_original_metrics_still_work(self):
         """Test that original gopro-overlay metrics still work after patching."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -235,7 +235,7 @@ class TestMetricPatch:
 
     def test_unknown_metric_still_raises(self):
         """Test that unknown metrics still raise IOError after patching."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -246,7 +246,7 @@ class TestMetricPatch:
 
     def test_patch_idempotent(self):
         """Test that metric patch can be applied multiple times safely."""
-        from telemetry_studio.patches.metric_patches import patch_metric_accessor
+        from gpstitch.patches.metric_patches import patch_metric_accessor
 
         patch_metric_accessor()
         patch_metric_accessor()
@@ -264,12 +264,12 @@ class TestWrapperScript:
         """Test that wrapper script file exists."""
         from pathlib import Path
 
-        wrapper_path = Path(__file__).parents[3] / "src" / "telemetry_studio" / "scripts" / "gopro_dashboard_wrapper.py"
+        wrapper_path = Path(__file__).parents[3] / "src" / "gpstitch" / "scripts" / "gopro_dashboard_wrapper.py"
         assert wrapper_path.exists()
 
     def test_wrapper_can_be_imported(self):
         """Test that wrapper script can be imported."""
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         assert hasattr(gopro_dashboard_wrapper, "main")
         assert hasattr(gopro_dashboard_wrapper, "find_gopro_dashboard")
@@ -282,7 +282,7 @@ class TestExtractSrtArgs:
     def test_extracts_srt_source(self, monkeypatch):
         import sys
 
-        from telemetry_studio.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
 
         monkeypatch.setattr(sys, "argv", ["script", "--gpx", "track.gpx", "--ts-srt-source", "/path/to/file.srt"])
         srt_path, video_path = _extract_srt_args()
@@ -293,7 +293,7 @@ class TestExtractSrtArgs:
     def test_extracts_both_args(self, monkeypatch):
         import sys
 
-        from telemetry_studio.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
 
         monkeypatch.setattr(
             sys,
@@ -316,7 +316,7 @@ class TestExtractSrtArgs:
     def test_no_srt_args_returns_none(self, monkeypatch):
         import sys
 
-        from telemetry_studio.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
 
         monkeypatch.setattr(sys, "argv", ["script", "--gpx", "track.gpx", "--layout", "default"])
         srt_path, video_path = _extract_srt_args()
@@ -327,7 +327,7 @@ class TestExtractSrtArgs:
     def test_extracts_args_at_end(self, monkeypatch):
         import sys
 
-        from telemetry_studio.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
 
         monkeypatch.setattr(
             sys, "argv", ["script", "--gpx", "t.gpx", "--ts-srt-source", "/a.srt", "--ts-srt-video", "/v.mp4"]
@@ -343,27 +343,27 @@ class TestConfigIntegration:
 
     def test_enable_gopro_patches_setting_exists(self):
         """Test that enable_gopro_patches setting exists."""
-        from telemetry_studio.config import settings
+        from gpstitch.config import settings
 
         assert hasattr(settings, "enable_gopro_patches")
         assert isinstance(settings.enable_gopro_patches, bool)
 
     def test_use_wrapper_script_setting_exists(self):
         """Test that use_wrapper_script setting exists."""
-        from telemetry_studio.config import settings
+        from gpstitch.config import settings
 
         assert hasattr(settings, "use_wrapper_script")
         assert isinstance(settings.use_wrapper_script, bool)
 
     def test_default_patches_enabled(self):
         """Test that patches are enabled by default."""
-        from telemetry_studio.config import settings
+        from gpstitch.config import settings
 
         assert settings.enable_gopro_patches is True
 
     def test_default_wrapper_enabled(self):
         """Test that wrapper script is enabled by default."""
-        from telemetry_studio.config import settings
+        from gpstitch.config import settings
 
         assert settings.use_wrapper_script is True
 
@@ -374,18 +374,18 @@ class TestServiceIntegration:
     def test_render_service_applies_patches(self):
         """Test that render_service module applies patches on import."""
         # Import the module
-        from telemetry_studio.patches import is_patched
+        from gpstitch.patches import is_patched
 
         assert is_patched() is True
 
     def test_renderer_applies_patches(self):
         """Test that renderer module applies patches on import."""
-        from telemetry_studio.patches import is_patched
+        from gpstitch.patches import is_patched
 
         assert is_patched() is True
 
     def test_metadata_applies_patches(self):
         """Test that metadata module applies patches on import."""
-        from telemetry_studio.patches import is_patched
+        from gpstitch.patches import is_patched
 
         assert is_patched() is True

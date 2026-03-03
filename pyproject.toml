@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "telemetry-studio"
+name = "gpstitch"
 version = "0.6.5"
 description = "Web UI for telemetry video overlay configuration and preview"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
 requires-python = ">=3.14"
 authors = [
-    { name = "Telemetry Studio Contributors" }
+    { name = "GPStitch Contributors" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -41,14 +41,14 @@ dev = [
 ]
 
 [project.scripts]
-telemetry-studio = "telemetry_studio.main:main"
+gpstitch = "gpstitch.main:main"
 
 [project.urls]
-Homepage = "https://github.com/user/telemetry-studio"
-Repository = "https://github.com/user/telemetry-studio"
+Homepage = "https://github.com/Romancha/GPStitch"
+Repository = "https://github.com/Romancha/GPStitch"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/telemetry_studio"]
+packages = ["src/gpstitch"]
 
 [tool.ruff]
 target-version = "py314"
@@ -69,7 +69,7 @@ select = [
 ignore = ["E501"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["telemetry_studio"]
+known-first-party = ["gpstitch"]
 
 [tool.ruff.format]
 quote-style = "double"

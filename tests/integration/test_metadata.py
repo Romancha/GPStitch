@@ -9,7 +9,7 @@ class TestVideoMetadataExtraction:
 
     def test_extract_video_metadata(self, integration_test_video):
         """Extract metadata from real GoPro video."""
-        from telemetry_studio.services.metadata import extract_video_metadata
+        from gpstitch.services.metadata import extract_video_metadata
 
         metadata = extract_video_metadata(integration_test_video)
 
@@ -22,7 +22,7 @@ class TestVideoMetadataExtraction:
 
     def test_video_has_gps(self, integration_test_video):
         """GoPro video should have GPS data."""
-        from telemetry_studio.services.metadata import extract_video_metadata
+        from gpstitch.services.metadata import extract_video_metadata
 
         metadata = extract_video_metadata(integration_test_video)
 
@@ -31,7 +31,7 @@ class TestVideoMetadataExtraction:
 
     def test_video_resolution_reasonable(self, integration_test_video):
         """Video resolution should be reasonable."""
-        from telemetry_studio.services.metadata import extract_video_metadata
+        from gpstitch.services.metadata import extract_video_metadata
 
         metadata = extract_video_metadata(integration_test_video)
 
@@ -41,7 +41,7 @@ class TestVideoMetadataExtraction:
 
     def test_video_frame_rate_valid(self, integration_test_video):
         """Frame rate should be valid."""
-        from telemetry_studio.services.metadata import extract_video_metadata
+        from gpstitch.services.metadata import extract_video_metadata
 
         metadata = extract_video_metadata(integration_test_video)
 
@@ -56,7 +56,7 @@ class TestGpxFitMetadataExtraction:
 
     def test_extract_gpx_metadata(self, sample_gpx_file):
         """Extract metadata from GPX file."""
-        from telemetry_studio.services.metadata import extract_gpx_fit_metadata
+        from gpstitch.services.metadata import extract_gpx_fit_metadata
 
         metadata = extract_gpx_fit_metadata(sample_gpx_file)
 
@@ -70,7 +70,7 @@ class TestMOVVideoMetadataExtraction:
 
     def test_extract_mov_video_metadata(self, integration_test_mov_video):
         """Extract metadata from MOV video."""
-        from telemetry_studio.services.metadata import extract_video_metadata
+        from gpstitch.services.metadata import extract_video_metadata
 
         metadata = extract_video_metadata(integration_test_mov_video)
 
@@ -81,7 +81,7 @@ class TestMOVVideoMetadataExtraction:
 
     def test_mov_video_has_no_gps(self, integration_test_mov_video):
         """MOV video without telemetry should have has_gps=False."""
-        from telemetry_studio.services.metadata import extract_video_metadata
+        from gpstitch.services.metadata import extract_video_metadata
 
         metadata = extract_video_metadata(integration_test_mov_video)
 
@@ -90,7 +90,7 @@ class TestMOVVideoMetadataExtraction:
 
     def test_mov_video_rotation_applied(self, integration_test_mov_video):
         """Verify rotation is applied to MOV video dimensions."""
-        from telemetry_studio.services.metadata import (
+        from gpstitch.services.metadata import (
             extract_video_metadata,
             get_video_rotation,
         )
@@ -111,7 +111,7 @@ class TestFileTypeDetection:
 
     def test_detect_video_type(self, integration_test_video):
         """Detect video file type."""
-        from telemetry_studio.services.metadata import get_file_type
+        from gpstitch.services.metadata import get_file_type
 
         file_type = get_file_type(integration_test_video)
 
@@ -119,7 +119,7 @@ class TestFileTypeDetection:
 
     def test_detect_gpx_type(self, sample_gpx_file):
         """Detect GPX file type."""
-        from telemetry_studio.services.metadata import get_file_type
+        from gpstitch.services.metadata import get_file_type
 
         file_type = get_file_type(sample_gpx_file)
 
@@ -127,7 +127,7 @@ class TestFileTypeDetection:
 
     def test_detect_fit_type(self, temp_dir):
         """Detect FIT file type."""
-        from telemetry_studio.services.metadata import get_file_type
+        from gpstitch.services.metadata import get_file_type
 
         fit_file = temp_dir / "test.fit"
         fit_file.write_bytes(b"fake fit content")
@@ -138,7 +138,7 @@ class TestFileTypeDetection:
 
     def test_detect_mov_type(self, integration_test_mov_video):
         """Detect MOV file type."""
-        from telemetry_studio.services.metadata import get_file_type
+        from gpstitch.services.metadata import get_file_type
 
         file_type = get_file_type(integration_test_mov_video)
 
@@ -146,7 +146,7 @@ class TestFileTypeDetection:
 
     def test_unknown_file_type(self, temp_dir):
         """Unknown file extension returns 'unknown'."""
-        from telemetry_studio.services.metadata import get_file_type
+        from gpstitch.services.metadata import get_file_type
 
         txt_file = temp_dir / "test.txt"
         txt_file.write_text("hello")

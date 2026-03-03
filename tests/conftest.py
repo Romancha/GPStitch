@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from telemetry_studio.app import app
+from gpstitch.app import app
 from tests.fixtures.factories import (
     create_editor_layout,
     create_file_info,
@@ -70,7 +70,7 @@ def temp_dir():
 @pytest.fixture
 def mock_settings(temp_dir, monkeypatch):
     """Create isolated settings with temp directories."""
-    from telemetry_studio.config import Settings
+    from gpstitch.config import Settings
 
     settings = Settings(
         temp_dir=temp_dir,
@@ -80,10 +80,10 @@ def mock_settings(temp_dir, monkeypatch):
     )
 
     # Patch settings in all modules that import it
-    monkeypatch.setattr("telemetry_studio.config.settings", settings)
-    monkeypatch.setattr("telemetry_studio.services.file_manager.settings", settings)
-    monkeypatch.setattr("telemetry_studio.services.template_service.settings", settings)
-    monkeypatch.setattr("telemetry_studio.services.job_manager.settings", settings)
+    monkeypatch.setattr("gpstitch.config.settings", settings)
+    monkeypatch.setattr("gpstitch.services.file_manager.settings", settings)
+    monkeypatch.setattr("gpstitch.services.template_service.settings", settings)
+    monkeypatch.setattr("gpstitch.services.job_manager.settings", settings)
 
     return settings
 
@@ -96,7 +96,7 @@ def mock_settings(temp_dir, monkeypatch):
 @pytest.fixture
 def clean_file_manager(mock_settings):
     """Create a fresh FileManager with isolated temp_dir."""
-    from telemetry_studio.services.file_manager import FileManager
+    from gpstitch.services.file_manager import FileManager
 
     manager = FileManager()
     yield manager
@@ -112,7 +112,7 @@ def clean_file_manager(mock_settings):
 @pytest.fixture
 def clean_job_manager(temp_dir):
     """Create a fresh JobManager with isolated state_dir."""
-    from telemetry_studio.services.job_manager import JobManager
+    from gpstitch.services.job_manager import JobManager
 
     state_dir = temp_dir / "jobs"
     manager = JobManager(state_dir=state_dir)
@@ -122,7 +122,7 @@ def clean_job_manager(temp_dir):
 @pytest.fixture
 def clean_template_service(temp_dir):
     """Create a fresh TemplateService with isolated templates_dir."""
-    from telemetry_studio.services.template_service import TemplateService
+    from gpstitch.services.template_service import TemplateService
 
     templates_dir = temp_dir / "templates"
     service = TemplateService(templates_dir=templates_dir)
@@ -220,7 +220,7 @@ def mock_ffmpeg(monkeypatch):
     )
     mock.return_value.has_gps.return_value = True
 
-    monkeypatch.setattr("telemetry_studio.services.metadata.FFMPEGGoPro", mock)
+    monkeypatch.setattr("gpstitch.services.metadata.FFMPEGGoPro", mock)
     return mock
 
 

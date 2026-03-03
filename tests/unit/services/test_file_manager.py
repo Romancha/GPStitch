@@ -4,7 +4,7 @@ import time
 
 import pytest
 
-from telemetry_studio.models.schemas import FileRole
+from gpstitch.models.schemas import FileRole
 
 
 class TestFileManagerSession:

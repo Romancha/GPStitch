@@ -3,14 +3,14 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from telemetry_studio.models.editor import (
+from gpstitch.models.editor import (
     CanvasSettings,
     EditorLayout,
     LayoutMetadata,
     WidgetInstance,
 )
-from telemetry_studio.models.job import Job, JobProgress, JobStatus, JobType, RenderJobConfig
-from telemetry_studio.models.schemas import FileInfo, FileRole, GpxFitMetadata, VideoMetadata
+from gpstitch.models.job import Job, JobProgress, JobStatus, JobType, RenderJobConfig
+from gpstitch.models.schemas import FileInfo, FileRole, GpxFitMetadata, VideoMetadata
 
 
 def create_video_metadata(

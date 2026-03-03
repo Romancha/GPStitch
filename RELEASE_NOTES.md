@@ -39,7 +39,7 @@
 
 ### 🆕 New
 
-- **PyPI publishing** - Package can now be installed via `pipx install telemetry-studio`
+- **PyPI publishing** - Package can now be installed via `pipx install gpstitch`
 - **Auto-open browser** - Browser opens automatically when the server starts
 - **FFmpeg check at startup** - Clear error message with per-OS install instructions if FFmpeg is not found in PATH
 

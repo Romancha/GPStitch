@@ -1,7 +1,7 @@
 """Tests for GPS quality analyzer service."""
 
-from telemetry_studio.models.schemas import GPSQualityReport
-from telemetry_studio.services.gps_analyzer import (
+from gpstitch.models.schemas import GPSQualityReport
+from gpstitch.services.gps_analyzer import (
     _build_report,
     _determine_quality_score,
     _generate_warnings,

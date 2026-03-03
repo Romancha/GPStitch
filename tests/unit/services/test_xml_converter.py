@@ -1,6 +1,6 @@
 """Unit tests for XMLConverter service."""
 
-from telemetry_studio.services.xml_converter import xml_converter
+from gpstitch.services.xml_converter import xml_converter
 
 
 class TestLayoutToXml:

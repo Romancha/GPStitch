@@ -79,7 +79,7 @@ Desktop.ini
 
 # Project specific
 *.log
-.telemetry-studio/
+.gpstitch/
 temp/
 
 # uv

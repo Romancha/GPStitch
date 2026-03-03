@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from telemetry_studio.services.srt_parser import (
+from gpstitch.services.srt_parser import (
     _parse_shutter,
     estimate_tz_offset,
     get_srt_metadata,
@@ -343,7 +343,7 @@ class TestTimeseriesCameraMetrics:
     def test_entries_have_camera_metrics(self, srt_file):
         from gopro_overlay.units import units
 
-        from telemetry_studio.services.srt_parser import srt_to_timeseries
+        from gpstitch.services.srt_parser import srt_to_timeseries
 
         points = parse_srt(srt_file)
         ts = srt_to_timeseries(points, units)
@@ -361,7 +361,7 @@ class TestTimeseriesCameraMetrics:
     def test_entries_without_camera_metrics(self, tmp_path):
         from gopro_overlay.units import units
 
-        from telemetry_studio.services.srt_parser import srt_to_timeseries
+        from gpstitch.services.srt_parser import srt_to_timeseries
 
         srt_content = """\
 1

@@ -1,7 +1,7 @@
 """Unit tests for WidgetRegistry service."""
 
-from telemetry_studio.models.editor import WidgetCategory
-from telemetry_studio.services.widget_registry import widget_registry
+from gpstitch.models.editor import WidgetCategory
+from gpstitch.services.widget_registry import widget_registry
 
 
 class TestWidgetRegistryMetadata:

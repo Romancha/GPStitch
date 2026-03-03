@@ -1,4 +1,4 @@
-# Telemetry Studio
+# GPStitch
 
 [![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
@@ -24,37 +24,37 @@ A visual web interface for creating video overlays with GPS telemetry data. Wrap
 
 Simple configuration with predefined layouts. Perfect for quick renders.
 
-![Quick Mode](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/quick_mode.jpg)
+![Quick Mode](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/quick_mode.jpg)
 
 ### Advanced Mode
 
 Full visual editor with drag-and-drop widgets. Create custom layouts with complete control.
 
-![Advanced Mode](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/advanced_mode.jpg)
+![Advanced Mode](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/advanced_mode.jpg)
 
 ### DJI Drone Support
 
 Use DJI drone videos with SRT telemetry files. Timezone offset and time alignment are automatically detected from video metadata, supporting different DJI models and firmware versions.
 
-![DJI Drone Support](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/dji_drone.jpg)
+![DJI Drone Support](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/dji_drone.jpg)
 
 Camera metrics (ISO, shutter, f-number, EV, color temperature) from SRT files are displayed directly on the video overlay.
 
-![DJI Drone Overlay](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/dji_drone_screen_from_video.jpg)
+![DJI Drone Overlay](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/dji_drone_screen_from_video.jpg)
 
 ### External GPX & Vertical Video
 
 Use any video with external GPX/FIT files. Vertical videos are automatically detected and rendered correctly.
 
-![External GPX & Vertical Video](https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/external_gpx_vertical.jpg)
+![External GPX & Vertical Video](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/external_gpx_vertical.jpg)
 
 ### Batch Rendering
 
 Process multiple videos at once with the same overlay settings.
 
 <p align="center">
-<img src="https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/batch_create.png" width="400" alt="Batch Create"/>
-<img src="https://raw.githubusercontent.com/Romancha/telemetry-studio/main/docs/images/batch_progress.png" width="400" alt="Batch Progress"/>
+<img src="https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/batch_create.png" width="400" alt="Batch Create"/>
+<img src="https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/batch_progress.png" width="400" alt="Batch Progress"/>
 </p>
 
 ## Requirements
@@ -73,14 +73,14 @@ Process multiple videos at once with the same overlay settings.
 # Ubuntu:   sudo apt install ffmpeg
 # Windows:  choco install ffmpeg
 
-# Install Telemetry Studio
-pipx install telemetry-studio
+# Install GPStitch
+pipx install gpstitch
 
 # Run (opens browser automatically)
-telemetry-studio
+gpstitch
 
 # Or with custom host/port
-telemetry-studio --host 127.0.0.1 --port 8080
+gpstitch --host 127.0.0.1 --port 8080
 ```
 
 ### From source
@@ -90,14 +90,14 @@ telemetry-studio --host 127.0.0.1 --port 8080
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Clone the repository
-git clone https://github.com/Romancha/telemetry-studio.git
-cd telemetry-studio
+git clone https://github.com/Romancha/GPStitch.git
+cd gpstitch
 
 # Install dependencies
 uv sync
 
 # Run the application
-uv run telemetry-studio
+uv run gpstitch
 ```
 
 Then open http://localhost:8000 in your browser.
@@ -111,14 +111,14 @@ Then open http://localhost:8000 in your browser.
 
 ## Configuration
 
-Environment variables (prefix: `TELEMETRY_STUDIO_`):
+Environment variables (prefix: `GPSTITCH_`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOST` | `0.0.0.0` | Server host |
 | `PORT` | `8000` | Server port |
 | `LOCAL_MODE` | `true` | Use local file paths instead of uploads |
-| `TEMPLATES_DIR` | `~/.telemetry-studio/templates` | Custom templates directory |
+| `TEMPLATES_DIR` | `~/.gpstitch/templates` | Custom templates directory |
 | `ENABLE_GOPRO_PATCHES` | `true` | Enable runtime patches for gopro-overlay |
 | `USE_WRAPPER_SCRIPT` | `true` | Use wrapper script for rendering |
 
@@ -126,7 +126,7 @@ You can also use a `.env` file in the project root.
 
 ## Runtime Patches
 
-Telemetry Studio includes runtime patches for `gopro-overlay` that add:
+GPStitch includes runtime patches for `gopro-overlay` that add:
 
 - **Timecode preservation** — Maintains original video timecode for Final Cut Pro compatibility
 - **Audio stream copy** — Preserves audio without re-encoding
@@ -136,8 +136,8 @@ Telemetry Studio includes runtime patches for `gopro-overlay` that add:
 Patches are applied automatically at startup. To disable:
 
 ```bash
-export TELEMETRY_STUDIO_ENABLE_GOPRO_PATCHES=false
-export TELEMETRY_STUDIO_USE_WRAPPER_SCRIPT=false
+export GPSTITCH_ENABLE_GOPRO_PATCHES=false
+export GPSTITCH_USE_WRAPPER_SCRIPT=false
 ```
 
 ## Development
@@ -163,7 +163,7 @@ uv run pytest tests/e2e/ -v
 ### Project Structure
 
 ```
-src/telemetry_studio/
+src/gpstitch/
 ├── main.py          # CLI entry point
 ├── app.py           # FastAPI application
 ├── config.py        # Settings

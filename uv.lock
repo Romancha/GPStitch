@@ -388,6 +388,56 @@ wheels = [
 ]
 
 [[package]]
+name = "gpstitch"
+version = "0.6.5"
+source = { editable = "." }
+dependencies = [
+    { name = "fastapi" },
+    { name = "gopro-overlay" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "python-multipart" },
+    { name = "setuptools" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-playwright" },
+    { name = "ruff" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "nest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", specifier = ">=0.128.0" },
+    { name = "gopro-overlay", specifier = ">=0.129.0" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
+    { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", specifier = ">=2.12.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.3.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "pytest-playwright", marker = "extra == 'dev'", specifier = ">=0.7.2" },
+    { name = "python-multipart", specifier = ">=0.0.22" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.14" },
+    { name = "setuptools", specifier = "<82" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
+]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "nest-asyncio", specifier = ">=1.6.0" }]
+
+[[package]]
 name = "gpxpy"
 version = "1.6.1"
 source = { registry = "https://pypi.org/simple" }
@@ -981,56 +1031,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/ba/b8/73a0e6a6e079a9d9c
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/52/1064f510b141bd54025f9b55105e26d1fa970b9be67ad766380a3c9b74b0/starlette-0.50.0-py3-none-any.whl", hash = "sha256:9e5391843ec9b6e472eed1365a78c8098cfceb7a74bfd4d6b1c0c0095efb3bca", size = 74033, upload-time = "2025-11-01T15:25:25.461Z" },
 ]
-
-[[package]]
-name = "telemetry-studio"
-version = "0.6.4"
-source = { editable = "." }
-dependencies = [
-    { name = "fastapi" },
-    { name = "gopro-overlay" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "python-multipart" },
-    { name = "setuptools" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "httpx" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-playwright" },
-    { name = "ruff" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "nest-asyncio" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", specifier = ">=0.128.0" },
-    { name = "gopro-overlay", specifier = ">=0.129.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pydantic-settings", specifier = ">=2.12.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=1.3.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "pytest-playwright", marker = "extra == 'dev'", specifier = ">=0.7.2" },
-    { name = "python-multipart", specifier = ">=0.0.22" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.14.14" },
-    { name = "setuptools", specifier = "<82" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
-]
-provides-extras = ["dev"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "nest-asyncio", specifier = ">=1.6.0" }]
 
 [[package]]
 name = "text-unidecode"

@@ -53,7 +53,7 @@ def base_url(app_port: int) -> str:
 def live_server(app_port: int):
     """Start FastAPI server in a background thread."""
     server_thread = ServerThread(
-        app="telemetry_studio.app:app",
+        app="gpstitch.app:app",
         host="127.0.0.1",
         port=app_port,
     )

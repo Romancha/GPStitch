@@ -1,1 +1,1 @@
-"""Unit tests for Telemetry Studio."""
+"""Unit tests for GPStitch."""

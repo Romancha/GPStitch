@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from telemetry_studio.models.schemas import FileRole
+from gpstitch.models.schemas import FileRole
 
 
 @pytest.mark.integration
@@ -18,7 +18,7 @@ class TestRendererPreview:
 
     def test_render_preview_returns_image(self, integration_test_video):
         """Render preview should return PNG image data."""
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         png_bytes, width, height = render_preview(
             file_path=integration_test_video,
@@ -38,7 +38,7 @@ class TestRendererPreview:
         """Preview image should convert to base64."""
         import base64
 
-        from telemetry_studio.services.renderer import image_to_base64, render_preview
+        from gpstitch.services.renderer import image_to_base64, render_preview
 
         png_bytes, _, _ = render_preview(
             file_path=integration_test_video,
@@ -54,7 +54,7 @@ class TestRendererPreview:
 
     def test_render_preview_different_frame(self, integration_test_video):
         """Preview at different frame times should work."""
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         png1, _, _ = render_preview(
             file_path=integration_test_video,
@@ -79,7 +79,7 @@ class TestRendererPreviewMOV:
 
     def test_render_mov_with_external_gpx(self, integration_test_mov_video, integration_test_run_gpx):
         """Render preview with MOV video + external GPX file via gpx_path."""
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         png_bytes, width, height = render_preview(
             file_path=integration_test_mov_video,
@@ -95,7 +95,7 @@ class TestRendererPreviewMOV:
 
     def test_render_mov_without_gpx_raises(self, integration_test_mov_video):
         """Render MOV without GPS and without gpx_path should raise ValueError."""
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         with pytest.raises(ValueError, match="GPS"):
             render_preview(
@@ -111,7 +111,7 @@ class TestRendererLayouts:
 
     def test_get_available_layouts(self):
         """Should return list of available layouts."""
-        from telemetry_studio.services.renderer import get_available_layouts
+        from gpstitch.services.renderer import get_available_layouts
 
         layouts = get_available_layouts()
 
@@ -122,7 +122,7 @@ class TestRendererLayouts:
 
     def test_layout_has_dimensions(self):
         """Layouts should have width and height."""
-        from telemetry_studio.services.renderer import get_available_layouts
+        from gpstitch.services.renderer import get_available_layouts
 
         layouts = get_available_layouts()
 
@@ -137,7 +137,7 @@ class TestRendererUnits:
 
     def test_get_available_units(self):
         """Should return unit options."""
-        from telemetry_studio.services.renderer import get_available_units
+        from gpstitch.services.renderer import get_available_units
 
         units = get_available_units()
 
@@ -148,7 +148,7 @@ class TestRendererUnits:
 
     def test_units_have_options(self):
         """Unit categories should have options."""
-        from telemetry_studio.services.renderer import get_available_units
+        from gpstitch.services.renderer import get_available_units
 
         units = get_available_units()
 
@@ -163,7 +163,7 @@ class TestRendererMapStyles:
 
     def test_get_available_map_styles(self):
         """Should return map style options."""
-        from telemetry_studio.services.renderer import get_available_map_styles
+        from gpstitch.services.renderer import get_available_map_styles
 
         styles = get_available_map_styles()
 
@@ -179,7 +179,7 @@ class TestRendererFFmpegProfiles:
 
     def test_get_available_ffmpeg_profiles(self):
         """Should return FFmpeg profile options."""
-        from telemetry_studio.services.renderer import get_available_ffmpeg_profiles
+        from gpstitch.services.renderer import get_available_ffmpeg_profiles
 
         profiles = get_available_ffmpeg_profiles()
 
@@ -196,8 +196,8 @@ class TestRendererCLICommand:
 
     def test_generate_cli_command_video_only(self, clean_file_manager, integration_test_video, monkeypatch):
         """Generate CLI command for video-only mode."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -224,8 +224,8 @@ class TestRendererCLICommand:
 
     def test_generate_cli_command_with_units(self, clean_file_manager, integration_test_video, monkeypatch):
         """Generate CLI command with custom units."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -255,8 +255,8 @@ class TestRendererCLICommand:
         self, clean_file_manager, integration_test_video, sample_gpx_file, sample_video_metadata, monkeypatch
     ):
         """Generate CLI command with GPX merge."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -291,8 +291,8 @@ class TestRendererCLICommand:
         self, clean_file_manager, integration_test_video, sample_gpx_file, sample_video_metadata, monkeypatch
     ):
         """Generate CLI command with GPX + time alignment should use --use-gpx-only."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -329,8 +329,8 @@ class TestRendererCLICommand:
 
     def test_generate_cli_command_with_ffmpeg_profile(self, clean_file_manager, integration_test_video, monkeypatch):
         """Generate CLI command with FFmpeg profile."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -366,7 +366,7 @@ class TestVerticalVideoRender:
     @pytest.fixture
     def render_output_dir(self):
         """Create temporary directory for render outputs."""
-        with tempfile.TemporaryDirectory(prefix="telemetry_studio_test_render_") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="gpstitch_test_render_") as tmpdir:
             yield Path(tmpdir)
 
     def test_render_vertical_mov_with_gpx_4k(
@@ -389,8 +389,8 @@ class TestVerticalVideoRender:
         import shutil
         from datetime import UTC, datetime
 
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         # Copy video to temp dir and set mtime to match GPX data
         # GPX timestamps: 2026-01-26T17:36:34Z (start of first trackpoint)
@@ -435,7 +435,7 @@ class TestVerticalVideoRender:
         assert "--gpx-merge" not in cmd, "Should NOT have --gpx-merge with time alignment"
 
         # Find gopro-dashboard.py
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
         assert wrapper.exists(), "Wrapper script not found"
@@ -504,8 +504,8 @@ class TestVerticalVideoRender:
         import shutil
         from datetime import UTC, datetime
 
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         # Copy video to temp dir and set mtime to match GPX first trackpoint
         video_copy = render_output_dir / integration_test_mov_video.name
@@ -586,7 +586,7 @@ class TestVerticalVideoRender:
         )
 
         # Step 3: Run gopro-dashboard on pillarboxed video
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
         args = shlex.split(cmd)
@@ -638,7 +638,7 @@ class TestVerticalVideoRender:
 
         from PIL import Image
 
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         png_bytes, width, height = render_preview(
             file_path=integration_test_mov_video,

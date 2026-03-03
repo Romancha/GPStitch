@@ -15,7 +15,7 @@ class TestCancelRender:
     def render_service(self):
         """Create a fresh RenderService instance."""
         # Import here to avoid side effects from patches
-        from telemetry_studio.services.render_service import RenderService
+        from gpstitch.services.render_service import RenderService
 
         service = RenderService()
         return service
@@ -53,7 +53,7 @@ class TestCancelRender:
 
         with (
             patch("os.killpg") as mock_killpg,
-            patch("telemetry_studio.services.render_service.job_manager") as mock_job_manager,
+            patch("gpstitch.services.render_service.job_manager") as mock_job_manager,
         ):
             mock_job_manager.update_job_status = AsyncMock()
 
@@ -77,7 +77,7 @@ class TestCancelRender:
 
         with (
             patch("os.killpg") as mock_killpg,
-            patch("telemetry_studio.services.render_service.job_manager") as mock_job_manager,
+            patch("gpstitch.services.render_service.job_manager") as mock_job_manager,
         ):
             mock_job_manager.update_job_status = AsyncMock()
 
@@ -102,7 +102,7 @@ class TestCancelRender:
 
         with (
             patch("os.killpg", side_effect=ProcessLookupError),
-            patch("telemetry_studio.services.render_service.job_manager") as mock_job_manager,
+            patch("gpstitch.services.render_service.job_manager") as mock_job_manager,
         ):
             mock_job_manager.update_job_status = AsyncMock()
 
@@ -118,7 +118,7 @@ class TestKillProcessTree:
     @pytest.fixture
     def render_service(self):
         """Create a fresh RenderService instance."""
-        from telemetry_studio.services.render_service import RenderService
+        from gpstitch.services.render_service import RenderService
 
         return RenderService()
 

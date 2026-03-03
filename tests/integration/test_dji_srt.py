@@ -11,8 +11,8 @@ from xml.etree import ElementTree
 
 import pytest
 
-from telemetry_studio.models.schemas import FileRole
-from telemetry_studio.services.srt_parser import (
+from gpstitch.models.schemas import FileRole
+from gpstitch.services.srt_parser import (
     calc_sample_rate,
     estimate_srt_fps,
     get_srt_metadata,
@@ -145,7 +145,7 @@ class TestDjiSrtTimezoneOffset:
 
     def test_estimate_tz_offset_returns_nonzero(self, integration_test_dji_srt, integration_test_dji_video):
         """Timezone offset should be detected from video mtime vs SRT timestamps."""
-        from telemetry_studio.services.srt_parser import estimate_tz_offset
+        from gpstitch.services.srt_parser import estimate_tz_offset
 
         offset, mtime_role = estimate_tz_offset(integration_test_dji_srt, integration_test_dji_video)
         assert offset is not None, "Offset should be determined for valid SRT"
@@ -159,7 +159,7 @@ class TestDjiSrtTimezoneOffset:
         """After tz_offset correction, the matching SRT point should be close to video mtime."""
         import os
 
-        from telemetry_studio.services.srt_parser import (
+        from gpstitch.services.srt_parser import (
             estimate_tz_offset,
             parse_srt,
         )
@@ -210,7 +210,7 @@ class TestDjiSrtPreviewRender:
 
     def test_render_preview_dji_video_with_srt(self, integration_test_dji_video, integration_test_dji_srt):
         """Render preview with DJI video + SRT as external telemetry source."""
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         png_bytes, width, height = render_preview(
             file_path=integration_test_dji_video,
@@ -226,7 +226,7 @@ class TestDjiSrtPreviewRender:
 
     def test_render_preview_srt_only(self, integration_test_dji_srt):
         """Render preview using SRT file as primary (overlay-only mode)."""
-        from telemetry_studio.services.renderer import render_preview
+        from gpstitch.services.renderer import render_preview
 
         png_bytes, width, height = render_preview(
             file_path=integration_test_dji_srt,
@@ -248,8 +248,8 @@ class TestDjiSrtCliCommand:
         self, clean_file_manager, integration_test_dji_video, integration_test_dji_srt, monkeypatch
     ):
         """CLI command for DJI video + SRT should convert SRT to GPX."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -289,8 +289,8 @@ class TestDjiSrtCliCommand:
 
     def test_cli_command_srt_primary_only(self, clean_file_manager, integration_test_dji_srt, monkeypatch):
         """CLI command for SRT-only mode should convert to GPX and use --use-gpx-only."""
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         session_id = clean_file_manager.create_local_session()
         clean_file_manager.add_file(
@@ -326,7 +326,7 @@ class TestDjiSrtFullRender:
 
     @pytest.fixture
     def render_output_dir(self):
-        with tempfile.TemporaryDirectory(prefix="telemetry_studio_dji_test_") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="gpstitch_dji_test_") as tmpdir:
             yield Path(tmpdir)
 
     @pytest.mark.xfail(
@@ -357,9 +357,9 @@ class TestDjiSrtFullRender:
         import os
         import shutil
 
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
-        from telemetry_studio.services.srt_parser import parse_srt, srt_to_gpx_file
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
+        from gpstitch.services.srt_parser import parse_srt, srt_to_gpx_file
 
         # Convert SRT to GPX with sample_rate=1 (keep all points)
         # The test SRT is very short (~0.8s, 25 frames), so no thinning
@@ -417,7 +417,7 @@ class TestDjiSrtFullRender:
         )
 
         # Execute the render
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
         args = shlex.split(cmd)

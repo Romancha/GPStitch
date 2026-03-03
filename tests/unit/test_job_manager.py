@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from telemetry_studio.models.job import JobStatus, RenderJobConfig
-from telemetry_studio.services.job_manager import JobManager
+from gpstitch.models.job import JobStatus, RenderJobConfig
+from gpstitch.services.job_manager import JobManager
 
 
 @pytest.fixture

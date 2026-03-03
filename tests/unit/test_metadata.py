@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from telemetry_studio.services.metadata import get_display_dimensions, get_file_type, get_video_rotation
+from gpstitch.services.metadata import get_display_dimensions, get_file_type, get_video_rotation
 
 
 class TestGetDisplayDimensions:

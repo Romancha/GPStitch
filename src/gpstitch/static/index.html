@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPStitch</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GPStitch</h1>
+            <p class="subtitle">Configure and preview your video overlay</p>
+            <a href="/editor" class="btn btn-secondary" style="margin-top: 1rem;">Open Visual Editor</a>
+        </header>
+
+        <!-- Section 1: Upload -->
+        <section id="upload-section" class="card">
+            <h2>1. Upload File</h2>
+            <div id="drop-zone" class="drop-zone">
+                <p>Drag and drop a file here, or click to select</p>
+                <p class="hint">Supported: MP4, MOV, GPX, FIT</p>
+                <input type="file" id="file-input" accept=".mp4,.mov,.gpx,.fit" hidden>
+            </div>
+            <div id="file-info" class="file-info hidden">
+                <div class="file-name"></div>
+                <div class="file-details"></div>
+            </div>
+        </section>
+
+        <!-- Section 2: Configure -->
+        <section id="configure-section" class="card hidden">
+            <h2>2. Configure</h2>
+
+            <div class="config-group">
+                <label for="layout-select">Layout</label>
+                <select id="layout-select"></select>
+            </div>
+
+            <div class="config-row">
+                <div class="config-group">
+                    <label for="units-speed">Speed Unit</label>
+                    <select id="units-speed"></select>
+                </div>
+                <div class="config-group">
+                    <label for="units-altitude">Altitude Unit</label>
+                    <select id="units-altitude"></select>
+                </div>
+            </div>
+
+            <div class="config-row">
+                <div class="config-group">
+                    <label for="units-distance">Distance Unit</label>
+                    <select id="units-distance"></select>
+                </div>
+                <div class="config-group">
+                    <label for="units-temperature">Temperature Unit</label>
+                    <select id="units-temperature"></select>
+                </div>
+            </div>
+
+            <div class="config-group">
+                <label for="map-style">Map Style</label>
+                <select id="map-style"></select>
+            </div>
+
+            <div class="config-group">
+                <label for="frame-time">Preview Time (seconds)</label>
+                <input type="number" id="frame-time" value="0" min="0" step="1">
+            </div>
+
+            <button id="generate-preview" class="btn btn-primary">Generate Preview</button>
+        </section>
+
+        <!-- Section 3: Preview -->
+        <section id="preview-section" class="card hidden">
+            <h2>3. Preview</h2>
+            <div id="preview-container">
+                <div id="preview-loading" class="loading hidden">
+                    <div class="spinner"></div>
+                    <p>Generating preview...</p>
+                </div>
+                <img id="preview-image" class="hidden" alt="Preview">
+            </div>
+            <p id="preview-info" class="hint"></p>
+        </section>
+
+        <!-- Section 4: Command -->
+        <section id="command-section" class="card hidden">
+            <h2>4. CLI Command</h2>
+            <div class="config-group">
+                <label for="output-filename">Output Filename</label>
+                <input type="text" id="output-filename" value="output.mp4">
+            </div>
+            <button id="generate-command" class="btn btn-secondary">Generate Command</button>
+            <div id="command-container" class="hidden">
+                <pre id="command-output"></pre>
+                <button id="copy-command" class="btn btn-small">Copy to Clipboard</button>
+            </div>
+        </section>
+
+        <footer>
+            <p>GPStitch <span id="app-version"></span> | <a href="https://github.com/Romancha/GPStitch" target="_blank" rel="noopener noreferrer">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        fetch('/api/version').then(r => r.json()).then(data => {
+            const el = document.getElementById('app-version');
+            if (el) el.textContent = 'v' + data.version;
+        });
+    </script>
+</body>
+</html>

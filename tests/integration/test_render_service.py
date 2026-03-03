@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from telemetry_studio.models.job import JobStatus, RenderJobConfig
-from telemetry_studio.models.schemas import FileRole
+from gpstitch.models.job import JobStatus, RenderJobConfig
+from gpstitch.models.schemas import FileRole
 
 
 @pytest.mark.integration
@@ -23,7 +23,7 @@ class TestRenderServiceFullPipeline:
 
     @pytest.fixture
     def render_output_dir(self):
-        with tempfile.TemporaryDirectory(prefix="telemetry_studio_render_svc_") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="gpstitch_render_svc_") as tmpdir:
             yield Path(tmpdir)
 
     @pytest.mark.asyncio
@@ -45,10 +45,10 @@ class TestRenderServiceFullPipeline:
         5. Job logs contain render output
         6. Temp pillarbox file is cleaned up
         """
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services import job_manager as jm_module
-        from telemetry_studio.services.job_manager import JobManager
-        from telemetry_studio.services.render_service import RenderService
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services import job_manager as jm_module
+        from gpstitch.services.job_manager import JobManager
+        from gpstitch.services.render_service import RenderService
 
         # Copy video WITHOUT setting mtime to GPX time.
         # This simulates real usage where the video file's mtime is arbitrary
@@ -81,7 +81,7 @@ class TestRenderServiceFullPipeline:
         state_dir.mkdir()
         isolated_job_manager = JobManager(state_dir=state_dir)
         monkeypatch.setattr(jm_module, "job_manager", isolated_job_manager)
-        monkeypatch.setattr("telemetry_studio.services.render_service.job_manager", isolated_job_manager)
+        monkeypatch.setattr("gpstitch.services.render_service.job_manager", isolated_job_manager)
 
         # Create job
         output_file = render_output_dir / "output_4k.mp4"

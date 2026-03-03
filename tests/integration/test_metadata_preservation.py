@@ -83,7 +83,7 @@ class TestTimecodeExtraction:
 
     def test_find_timecode_extracts_from_video(self, integration_test_video):
         """Test that find_timecode extracts timecode from real video."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -104,7 +104,7 @@ class TestTimecodeExtraction:
 
     def test_find_timecode_matches_ffprobe(self, integration_test_video):
         """Test that find_timecode returns same value as ffprobe."""
-        from telemetry_studio.patches import apply_patches
+        from gpstitch.patches import apply_patches
 
         apply_patches()
 
@@ -183,17 +183,17 @@ class TestMetadataPreservationAfterRender:
     @pytest.fixture
     def render_output_dir(self):
         """Create temporary directory for render outputs."""
-        with tempfile.TemporaryDirectory(prefix="telemetry_studio_test_") as tmpdir:
+        with tempfile.TemporaryDirectory(prefix="gpstitch_test_") as tmpdir:
             yield Path(tmpdir)
 
     def test_render_preserves_timecode(
         self, integration_test_video, render_output_dir, clean_file_manager, monkeypatch
     ):
         """Test that rendering preserves timecode in output video."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.patches import apply_patches
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.patches import apply_patches
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         apply_patches()
 
@@ -224,7 +224,7 @@ class TestMetadataPreservationAfterRender:
         )
 
         # Run render using wrapper script (which applies patches)
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
         assert wrapper.exists(), "Wrapper script not found"
@@ -256,10 +256,10 @@ class TestMetadataPreservationAfterRender:
 
     def test_render_preserves_audio(self, integration_test_video, render_output_dir, clean_file_manager, monkeypatch):
         """Test that rendering preserves audio stream."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.patches import apply_patches
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.patches import apply_patches
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         apply_patches()
 
@@ -289,7 +289,7 @@ class TestMetadataPreservationAfterRender:
             layout="default-1920x1080",
         )
 
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
 
@@ -321,10 +321,10 @@ class TestMetadataPreservationAfterRender:
         self, integration_test_video, render_output_dir, clean_file_manager, monkeypatch
     ):
         """Test that rendering preserves or sets creation_time metadata."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.patches import apply_patches
-        from telemetry_studio.services import file_manager as fm_module
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.patches import apply_patches
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
 
         apply_patches()
 
@@ -350,7 +350,7 @@ class TestMetadataPreservationAfterRender:
             layout="default-1920x1080",
         )
 
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
 
@@ -397,7 +397,7 @@ class TestWrapperExecution:
         from pathlib import Path
 
         # Run wrapper with --help to verify it works
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
         assert wrapper.exists()
@@ -418,7 +418,7 @@ class TestWrapperExecution:
         import sys
         from pathlib import Path
 
-        from telemetry_studio.scripts import gopro_dashboard_wrapper
+        from gpstitch.scripts import gopro_dashboard_wrapper
 
         wrapper = Path(gopro_dashboard_wrapper.__file__)
 

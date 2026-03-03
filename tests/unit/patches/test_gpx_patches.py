@@ -50,7 +50,7 @@ class TestPatchGpxLoadForSrt:
 
         original = loading_module.load_external
 
-        from telemetry_studio.patches.gpx_patches import patch_gpx_load_for_srt
+        from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
         patch_gpx_load_for_srt(str(srt_file))
 
@@ -58,7 +58,7 @@ class TestPatchGpxLoadForSrt:
         assert loading_module._ts_srt_patched is True
 
     def test_patched_load_returns_timeseries_with_camera_metrics(self, srt_file):
-        from telemetry_studio.patches.gpx_patches import patch_gpx_load_for_srt
+        from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
         patch_gpx_load_for_srt(str(srt_file))
 
@@ -79,7 +79,7 @@ class TestPatchGpxLoadForSrt:
         assert entry.ct is not None
 
     def test_patched_load_ignores_gpx_filepath(self, srt_file):
-        from telemetry_studio.patches.gpx_patches import patch_gpx_load_for_srt
+        from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
         patch_gpx_load_for_srt(str(srt_file))
 
@@ -91,7 +91,7 @@ class TestPatchGpxLoadForSrt:
         assert ts is not None
 
     def test_patch_is_idempotent(self, srt_file):
-        from telemetry_studio.patches.gpx_patches import patch_gpx_load_for_srt
+        from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
         patch_gpx_load_for_srt(str(srt_file))
         patch_gpx_load_for_srt(str(srt_file))
@@ -106,7 +106,7 @@ class TestPatchGpxLoadForSrt:
         empty_srt = tmp_path / "empty.srt"
         empty_srt.write_text("", encoding="utf-8")
 
-        from telemetry_studio.patches.gpx_patches import patch_gpx_load_for_srt
+        from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
         with pytest.raises(ValueError, match="No valid GPS data"):
             patch_gpx_load_for_srt(str(empty_srt))
@@ -124,7 +124,7 @@ class TestPatchGpxLoadForSrt:
         utc_time = datetime(2024, 8, 7, 9, 34, 24, tzinfo=UTC)
         os.utime(video_file, (utc_time.timestamp(), utc_time.timestamp()))
 
-        from telemetry_studio.patches.gpx_patches import patch_gpx_load_for_srt
+        from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
         patch_gpx_load_for_srt(str(srt_file), str(video_file))
 

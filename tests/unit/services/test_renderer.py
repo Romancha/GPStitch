@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from PIL import Image
 
-from telemetry_studio.services.renderer import _fit_video_to_canvas
+from gpstitch.services.renderer import _fit_video_to_canvas
 
 
 class TestFitVideoToCanvas:
@@ -91,14 +91,14 @@ class TestGenerateCliCommand:
     @pytest.fixture
     def mock_file_manager(self, monkeypatch):
         """Create mock file_manager for command generation tests."""
-        from telemetry_studio.services import file_manager as fm_module
+        from gpstitch.services import file_manager as fm_module
 
         manager = MagicMock()
         monkeypatch.setattr(fm_module, "file_manager", manager)
         return manager
 
     def _make_file_info(self, file_path, file_type, role):
-        from telemetry_studio.models.schemas import FileInfo
+        from gpstitch.models.schemas import FileInfo
 
         return FileInfo(
             filename=file_path.split("/")[-1],
@@ -109,8 +109,8 @@ class TestGenerateCliCommand:
 
     def test_video_gpx_with_time_alignment_uses_gpx_only(self, mock_file_manager):
         """Video + GPX with time alignment should use --use-gpx-only, not --gpx-merge."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
 
         primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
         secondary = self._make_file_info("/tmp/track.gpx", "gpx", FileRole.SECONDARY)
@@ -133,8 +133,8 @@ class TestGenerateCliCommand:
 
     def test_video_gpx_without_time_alignment_uses_gpx_merge(self, mock_file_manager):
         """Video + GPX without time alignment should use --gpx-merge."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
 
         primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
         secondary = self._make_file_info("/tmp/track.gpx", "gpx", FileRole.SECONDARY)
@@ -155,8 +155,8 @@ class TestGenerateCliCommand:
 
     def test_video_mode_includes_overlay_size(self, mock_file_manager):
         """Video mode should include --overlay-size matching canvas dimensions."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
 
         primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
 
@@ -174,8 +174,8 @@ class TestGenerateCliCommand:
 
     def test_video_gpx_mode_includes_overlay_size(self, mock_file_manager):
         """Video + GPX mode should include --overlay-size matching canvas dimensions."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
 
         primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
         secondary = self._make_file_info("/tmp/track.gpx", "gpx", FileRole.SECONDARY)
@@ -195,8 +195,8 @@ class TestGenerateCliCommand:
 
     def test_video_only_no_video_time_start(self, mock_file_manager):
         """Video-only mode should not include --video-time-start (requires --use-gpx-only)."""
-        from telemetry_studio.models.schemas import FileRole
-        from telemetry_studio.services.renderer import generate_cli_command
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
 
         primary = self._make_file_info("/tmp/video.mp4", "video", FileRole.PRIMARY)
 
