@@ -1,5 +1,9 @@
 # Release Notes
 
+## Version 0.7.0 — 03 Mar 2026
+
+- Rename project to GPStitch
+
 ## Version 0.6.5 — 02 Mar 2026
 
 ### 🐞 Fixes
