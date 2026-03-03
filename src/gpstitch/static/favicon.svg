@@ -1,0 +1,10 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="2" y="2" width="28" height="28" rx="6" fill="#0b1120" stroke="#243052" stroke-width="2"/>
+  <!-- Stitch ears -->
+  <path d="M8 11 Q6 5 10 7 Q12 8 11 11" fill="#4FC3F7" opacity="0.7"/>
+  <path d="M24 11 Q26 5 22 7 Q20 8 21 11" fill="#4FC3F7" opacity="0.7"/>
+  <!-- GPS pin body -->
+  <path d="M16 26 C16 26 22 19 22 14.5 C22 11.2 19.3 8.5 16 8.5 C12.7 8.5 10 11.2 10 14.5 C10 19 16 26 16 26Z" fill="none" stroke="#4FC3F7" stroke-width="1.8"/>
+  <!-- Center dot -->
+  <circle cx="16" cy="14.5" r="3" fill="#4FC3F7"/>
+</svg>

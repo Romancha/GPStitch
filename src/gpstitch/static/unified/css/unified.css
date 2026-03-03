@@ -8,36 +8,36 @@
    ============================================ */
 
 :root {
-    /* Color Palette - Dark Theme */
-    --color-bg-app: #0d0d14;
-    --color-bg-surface: #141421;
-    --color-bg-elevated: #1a1a2e;
-    --color-bg-panel: #16213e;
-    --color-bg-input: #0f3460;
-    --color-bg-hover: #1f4068;
-    --color-bg-active: #2a4a7a;
+    /* Color Palette - Dark Theme (Stitch Blue Brand) */
+    --color-bg-app: #0b1120;
+    --color-bg-surface: #131b2e;
+    --color-bg-elevated: #1a2340;
+    --color-bg-panel: #131b2e;
+    --color-bg-input: #1a2340;
+    --color-bg-hover: #1f2b4d;
+    --color-bg-active: #2a3660;
 
-    --color-text-primary: #eaeaea;
-    --color-text-secondary: #a0a0a0;
-    --color-text-muted: #6b7280;
-    --color-text-inverse: #0d0d14;
+    --color-text-primary: #e2e8f0;
+    --color-text-secondary: #8892b0;
+    --color-text-muted: #5a6785;
+    --color-text-inverse: #0b1120;
 
-    --color-border: #2a2a4a;
-    --color-border-light: #3a3a5a;
-    --color-border-focus: #3b82f6;
+    --color-border: #243052;
+    --color-border-light: #2d3a5c;
+    --color-border-focus: #4FC3F7;
 
-    --color-accent: #e94560;
-    --color-accent-hover: #ff6b6b;
-    --color-primary: #3b82f6;
-    --color-primary-hover: #2563eb;
+    --color-accent: #4FC3F7;
+    --color-accent-hover: #81D4FA;
+    --color-primary: #4FC3F7;
+    --color-primary-hover: #81D4FA;
     --color-success: #4ecdc4;
     --color-warning: #ffd166;
     --color-error: #ef476f;
 
     /* Widget colors */
-    --color-widget-bg: rgba(100, 150, 200, 0.3);
-    --color-widget-border: #6096c8;
-    --color-widget-selected: #00ffff;
+    --color-widget-bg: rgba(79, 195, 247, 0.15);
+    --color-widget-border: #4FC3F7;
+    --color-widget-selected: #4FC3F7;
 
     /* Spacing Scale */
     --space-1: 0.25rem;
@@ -52,7 +52,7 @@
 
     /* Typography */
     --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
@@ -68,9 +68,9 @@
 
     /* Border Radius */
     --radius-sm: 4px;
-    --radius-md: 6px;
-    --radius-lg: 8px;
-    --radius-xl: 12px;
+    --radius-md: 8px;
+    --radius-lg: 10px;
+    --radius-xl: 16px;
     --radius-full: 9999px;
 
     /* Shadows */
@@ -137,6 +137,10 @@ body {
     display: flex;
     align-items: center;
     gap: var(--space-4);
+}
+
+.logo-icon {
+    color: var(--color-accent);
 }
 
 .header-left h1 {
@@ -249,7 +253,7 @@ body {
 
 .mode-btn.active {
     background: var(--color-accent);
-    color: white;
+    color: var(--color-text-inverse);
 }
 
 /* ============================================
@@ -899,7 +903,7 @@ select {
 
 .btn-primary {
     background: var(--color-accent);
-    color: white;
+    color: var(--color-text-inverse);
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -1567,7 +1571,7 @@ select {
 .canvas-widget.selected {
     border-color: var(--color-widget-selected);
     border-style: dashed;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
 }
 
 .canvas-widget.locked {
@@ -1586,7 +1590,7 @@ select {
     left: 0;
     font-size: var(--font-size-xs);
     background: var(--color-widget-border);
-    color: white;
+    color: var(--color-bg-app);
     padding: 2px 6px;
     border-radius: 2px;
     white-space: nowrap;

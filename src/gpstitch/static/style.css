@@ -1,18 +1,18 @@
-/* GoPro Overlay UI Styles */
+/* GPStitch Classic UI Styles */
 
 :root {
-    --primary-color: #2563eb;
-    --primary-hover: #1d4ed8;
-    --secondary-color: #64748b;
-    --secondary-hover: #475569;
-    --success-color: #22c55e;
-    --error-color: #ef4444;
-    --background: #f8fafc;
-    --card-bg: #ffffff;
-    --text-color: #1e293b;
-    --text-muted: #64748b;
-    --border-color: #e2e8f0;
-    --border-radius: 8px;
+    --primary-color: #4FC3F7;
+    --primary-hover: #81D4FA;
+    --secondary-color: #5a6785;
+    --secondary-hover: #6b7a96;
+    --success-color: #4ecdc4;
+    --error-color: #ef476f;
+    --background: #0b1120;
+    --card-bg: #1a2340;
+    --text-color: #e2e8f0;
+    --text-muted: #8892b0;
+    --border-color: #243052;
+    --border-radius: 10px;
 }
 
 * {
@@ -45,6 +45,17 @@ header h1 {
     margin-bottom: 0.5rem;
 }
 
+.header-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.logo-icon {
+    color: var(--primary-color);
+}
+
 .subtitle {
     color: var(--text-muted);
 }
@@ -54,7 +65,7 @@ header h1 {
     border-radius: var(--border-radius);
     padding: 1.5rem;
     margin-bottom: 1.5rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--border-color);
 }
 
 .card h2 {
@@ -81,7 +92,7 @@ header h1 {
 .drop-zone:hover,
 .drop-zone.dragover {
     border-color: var(--primary-color);
-    background: rgba(37, 99, 235, 0.05);
+    background: rgba(79, 195, 247, 0.1);
 }
 
 .drop-zone p {
@@ -97,7 +108,7 @@ header h1 {
 .file-info {
     margin-top: 1rem;
     padding: 1rem;
-    background: rgba(37, 99, 235, 0.05);
+    background: rgba(79, 195, 247, 0.1);
     border-radius: var(--border-radius);
 }
 
@@ -151,7 +162,7 @@ select:focus,
 input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px rgba(79, 195, 247, 0.2);
 }
 
 /* Buttons */
@@ -168,7 +179,7 @@ input:focus {
 
 .btn-primary {
     background: var(--primary-color);
-    color: white;
+    color: #0b1120;
 }
 
 .btn-primary:hover {
@@ -245,12 +256,12 @@ input:focus {
 }
 
 #command-output {
-    background: #1e293b;
+    background: #0b1120;
     color: #e2e8f0;
     padding: 1rem;
     border-radius: var(--border-radius);
     overflow-x: auto;
-    font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     font-size: 0.875rem;
     white-space: pre-wrap;
     word-break: break-all;
@@ -272,7 +283,7 @@ footer {
 
 /* Error message */
 .error-message {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 71, 111, 0.15);
     color: var(--error-color);
     padding: 0.75rem 1rem;
     border-radius: var(--border-radius);

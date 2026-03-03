@@ -1,22 +1,22 @@
 /* Editor CSS - Visual Layout Editor for GPStitch */
 
 :root {
-    --bg-dark: #1a1a2e;
-    --bg-panel: #16213e;
-    --bg-input: #0f3460;
-    --bg-hover: #1f4068;
-    --bg-canvas: #0a0a14;
-    --text-primary: #eaeaea;
-    --text-secondary: #a0a0a0;
-    --accent: #e94560;
-    --accent-hover: #ff6b6b;
-    --border: #2a2a4a;
+    --bg-dark: #1a2340;
+    --bg-panel: #131b2e;
+    --bg-input: #1a2340;
+    --bg-hover: #1f2b4d;
+    --bg-canvas: #0b1120;
+    --text-primary: #e2e8f0;
+    --text-secondary: #8892b0;
+    --accent: #4FC3F7;
+    --accent-hover: #81D4FA;
+    --border: #243052;
     --success: #4ecdc4;
     --warning: #ffd166;
     --error: #ef476f;
-    --widget-bg: rgba(100, 150, 200, 0.3);
-    --widget-border: #6096c8;
-    --selection: #00ffff;
+    --widget-bg: rgba(79, 195, 247, 0.15);
+    --widget-border: #4FC3F7;
+    --selection: #4FC3F7;
 }
 
 * {
@@ -54,6 +54,10 @@ body {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+.logo-icon {
+    color: var(--accent);
 }
 
 .back-link {
@@ -102,7 +106,7 @@ body {
 
 .btn-primary {
     background: var(--accent);
-    color: white;
+    color: var(--bg-canvas);
 }
 
 .btn-primary:hover {
@@ -360,7 +364,7 @@ body {
 
 .canvas {
     position: relative;
-    background: #1a1a1a;
+    background: #0d1526;
     background-image:
         linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px);
@@ -391,7 +395,7 @@ body {
 .canvas-widget.selected {
     border-color: var(--selection);
     border-style: dashed;
-    box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
 }
 
 .canvas-widget.locked {
@@ -429,7 +433,7 @@ body {
     left: 0;
     font-size: 0.7rem;
     background: var(--widget-border);
-    color: white;
+    color: var(--bg-canvas);
     padding: 2px 6px;
     border-radius: 2px;
     white-space: nowrap;
@@ -547,8 +551,8 @@ body {
 
 .property-tooltip {
     position: fixed;
-    background: #1a1a1a;
-    color: #fff;
+    background: var(--bg-panel);
+    color: var(--text-primary);
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 12px;
