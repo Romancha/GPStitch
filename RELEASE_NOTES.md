@@ -1,5 +1,13 @@
 # Release Notes
 
+## Version 0.8.0 — 05 Mar 2026
+
+### ✨ Improvements
+
+- **Python 3.12+ support** — Lowered minimum Python version from 3.14 to 3.12, making GPStitch installable on Ubuntu 24.04 LTS and other systems without bleeding-edge Python ([#4](https://github.com/Romancha/GPStitch/issues/4))
+
+---
+
 ## Version 0.7.1 — 03 Mar 2026
 
 ### ✨ Improvements
