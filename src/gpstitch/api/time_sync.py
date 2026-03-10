@@ -109,8 +109,10 @@ def _calculate_overlap(
             curr = overlap_entries[i]
             if prev.point is not None and curr.point is not None:
                 total_distance_m += _haversine_distance(
-                    prev.point.lat, prev.point.lon,
-                    curr.point.lat, curr.point.lon,
+                    prev.point.lat,
+                    prev.point.lon,
+                    curr.point.lat,
+                    curr.point.lon,
                 )
 
         # Calculate average speed

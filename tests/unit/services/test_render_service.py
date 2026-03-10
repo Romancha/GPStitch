@@ -276,9 +276,7 @@ class TestResolveMtimeForAlignment:
         mock_fm.get_secondary_file.return_value = mock_secondary
         monkeypatch.setattr(fm_module, "file_manager", mock_fm)
 
-        with patch.object(
-            render_service, "_get_gpx_start_timestamp", return_value=1723132380.0
-        ):
+        with patch.object(render_service, "_get_gpx_start_timestamp", return_value=1723132380.0):
             ts = render_service._resolve_mtime_for_alignment(config, "/tmp/video.mov")
 
         assert ts == 1723132380.0

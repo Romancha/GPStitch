@@ -587,9 +587,7 @@ def render_preview(
                         file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
                     )
                     start_date = _align_timezone(start_date, timeseries)
-                    framemeta = timeseries_to_framemeta(
-                        timeseries, units, start_date=start_date, duration=duration
-                    )
+                    framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
                 else:
                     raise ValueError("Video file does not contain GPS metadata") from e
 
@@ -803,9 +801,7 @@ def _render_layout_with_data(
                         file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
                     )
                     start_date = _align_timezone(start_date, timeseries)
-                    framemeta = timeseries_to_framemeta(
-                        timeseries, units, start_date=start_date, duration=duration
-                    )
+                    framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
                 else:
                     raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
         else:
@@ -937,7 +933,9 @@ def generate_cli_command(
     secondary = file_manager.get_secondary_file(session_id)
 
     logger.info(f"generate_cli_command: session_id={session_id}")
-    logger.info(f"generate_cli_command: video_time_alignment={video_time_alignment!r}, gpx_merge_mode={gpx_merge_mode!r}")
+    logger.info(
+        f"generate_cli_command: video_time_alignment={video_time_alignment!r}, gpx_merge_mode={gpx_merge_mode!r}"
+    )
     logger.info(f"generate_cli_command: files={files}")
     logger.info(f"generate_cli_command: primary={primary}")
 

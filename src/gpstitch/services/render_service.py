@@ -333,9 +333,7 @@ class RenderService:
                 if pillarbox_temp_file:
                     # Set mtime on pillarbox file for time alignment.
                     # gopro-dashboard uses --video-time-start file-modified which reads mtime.
-                    target_ts = self._resolve_mtime_for_alignment(
-                        config, primary.file_path
-                    ) if needs_mtime else None
+                    target_ts = self._resolve_mtime_for_alignment(config, primary.file_path) if needs_mtime else None
                     if target_ts:
                         os.utime(pillarbox_temp_file, (target_ts, target_ts))
                         await job_manager.append_job_log(
@@ -347,9 +345,7 @@ class RenderService:
             else:
                 # No pillarbox — set mtime on original video if needed
                 # (save and restore after render)
-                target_ts = self._resolve_mtime_for_alignment(
-                    config, primary.file_path
-                ) if needs_mtime else None
+                target_ts = self._resolve_mtime_for_alignment(config, primary.file_path) if needs_mtime else None
                 if target_ts:
                     original_stat = os.stat(primary.file_path)
                     os.utime(primary.file_path, (target_ts, target_ts))

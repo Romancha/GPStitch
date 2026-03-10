@@ -64,9 +64,7 @@ class TestManualOffsetPanel:
         }""")
 
         # Check style.display directly since parent panel is hidden
-        display = app_page.evaluate(
-            "() => document.getElementById('manual-offset-panel').style.display"
-        )
+        display = app_page.evaluate("() => document.getElementById('manual-offset-panel').style.display")
         assert display == "block", f"Expected display 'block', got '{display}'"
 
         # Verify offset controls exist in DOM
@@ -83,9 +81,7 @@ class TestManualOffsetPanel:
             dropdown.dispatchEvent(new Event('change'));
         }""")
 
-        display = app_page.evaluate(
-            "() => document.getElementById('manual-offset-panel').style.display"
-        )
+        display = app_page.evaluate("() => document.getElementById('manual-offset-panel').style.display")
         assert display == "block"
 
         # Switch back to auto via JS
@@ -95,9 +91,7 @@ class TestManualOffsetPanel:
             dropdown.dispatchEvent(new Event('change'));
         }""")
 
-        display = app_page.evaluate(
-            "() => document.getElementById('manual-offset-panel').style.display"
-        )
+        display = app_page.evaluate("() => document.getElementById('manual-offset-panel').style.display")
         assert display == "none", f"Expected display 'none', got '{display}'"
 
     def test_time_sync_hint_exists(self, app_page: Page):

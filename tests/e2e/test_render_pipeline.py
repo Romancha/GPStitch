@@ -296,8 +296,6 @@ class TestDjiSrtRenderPipeline:
         assert len(cmd_text) > 0, "Command output should not be empty"
 
         # Verify critical flags for DJI+SRT
-        assert "--use-gpx-only" in cmd_text, (
-            f"DJI+SRT command must include --use-gpx-only, got:\n{cmd_text}"
-        )
+        assert "--use-gpx-only" in cmd_text, f"DJI+SRT command must include --use-gpx-only, got:\n{cmd_text}"
         assert "--gpx" in cmd_text, "Command must include --gpx flag"
         assert ".gpx" in cmd_text, "SRT should be converted to GPX"

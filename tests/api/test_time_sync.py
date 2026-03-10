@@ -162,9 +162,7 @@ class TestTimeSyncAnalyzeEndpoint:
         from gpstitch.api.time_sync import OverlapInfo
         from gpstitch.models.schemas import FileRole
 
-        mock_deps["calculate_overlap"].return_value = OverlapInfo(
-            points=4, distance_m=150.3, avg_speed_kph=0.2
-        )
+        mock_deps["calculate_overlap"].return_value = OverlapInfo(points=4, distance_m=150.3, avg_speed_kph=0.2)
 
         primary_fi = self._make_file_info(video_file)
         secondary_fi = self._make_file_info(gpx_file, role="secondary")

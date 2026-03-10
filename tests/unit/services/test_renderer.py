@@ -370,9 +370,7 @@ class TestResolveTimeAlignment:
             "gpstitch.services.renderer._extract_creation_time",
             return_value=creation_time,
         ):
-            start_date, duration, source = _resolve_time_alignment(
-                Path("/tmp/video.mov"), "auto", mock_ffmpeg_gopro
-            )
+            start_date, duration, source = _resolve_time_alignment(Path("/tmp/video.mov"), "auto", mock_ffmpeg_gopro)
 
         assert start_date == creation_time
         assert source == "media-created"
@@ -387,9 +385,7 @@ class TestResolveTimeAlignment:
             patch("gpstitch.services.renderer._extract_creation_time", return_value=None),
             patch("gopro_overlay.ffmpeg_gopro.filestat", return_value=mock_fstat),
         ):
-            start_date, duration, source = _resolve_time_alignment(
-                Path("/tmp/video.mov"), "auto", mock_ffmpeg_gopro
-            )
+            start_date, duration, source = _resolve_time_alignment(Path("/tmp/video.mov"), "auto", mock_ffmpeg_gopro)
 
         assert start_date == file_ctime
         assert source == "file-created"
@@ -407,9 +403,7 @@ class TestResolveTimeAlignment:
 
     def test_none_alignment_defaults_to_auto(self, mock_ffmpeg_gopro, creation_time):
         """None alignment should default to auto mode."""
-        start_date, duration, source = _resolve_time_alignment(
-            Path("/tmp/video.mov"), None, mock_ffmpeg_gopro
-        )
+        start_date, duration, source = _resolve_time_alignment(Path("/tmp/video.mov"), None, mock_ffmpeg_gopro)
 
         assert start_date is None
         assert duration is None

@@ -103,7 +103,5 @@ class TestEditorPreviewRequestAlignment:
                 EditorPreviewRequest(session_id="s1", layout={}, video_time_alignment=val)
 
     def test_offset_with_manual(self):
-        req = EditorPreviewRequest(
-            session_id="s1", layout={}, video_time_alignment="manual", time_offset_seconds=-30
-        )
+        req = EditorPreviewRequest(session_id="s1", layout={}, video_time_alignment="manual", time_offset_seconds=-30)
         assert req.time_offset_seconds == -30
