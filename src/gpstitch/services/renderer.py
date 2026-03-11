@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
 
+from gopro_overlay import timeseries_process
 from PIL import Image, ImageFont
 
 from gpstitch.config import settings
@@ -423,6 +424,20 @@ def _align_timezone(start_date, timeseries):
     return start_date
 
 
+def _apply_timeseries_processing(timeseries):
+    """Apply post-processing to compute calculated metrics (speed, distance, etc.).
+
+    External GPX/FIT files only contain raw GPS points. This runs the same
+    processing pipeline as gopro-dashboard.py to derive cspeed, dist, codo, etc.
+
+    Must be called on the full Timeseries BEFORE timeseries_to_framemeta() so that
+    cumulative metrics like codo reflect the absolute distance from the track start,
+    not relative to the video segment.
+    """
+    timeseries.process_deltas(timeseries_process.calculate_speeds(), skip=1)
+    timeseries.process(timeseries_process.calculate_odo())
+
+
 def _load_external_timeseries(filepath: Path, units):
     """Load telemetry from GPX, FIT, or SRT file into a Timeseries.
 
@@ -595,6 +610,7 @@ def render_preview(
                 if gpx_path:
                     # Video has no GPS — use external GPX/FIT/SRT file
                     timeseries = _load_external_timeseries(gpx_path, units)
+                    _apply_timeseries_processing(timeseries)
                     start_date, duration, _source = _resolve_time_alignment(
                         file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
                     )
@@ -606,6 +622,7 @@ def render_preview(
         else:
             # Load GPX, FIT, or SRT file
             timeseries = _load_external_timeseries(file_path, units)
+            _apply_timeseries_processing(timeseries)
             framemeta = timeseries_to_framemeta(timeseries, units)
 
         # Parse the layout XML
@@ -809,6 +826,7 @@ def _render_layout_with_data(
             except (OSError, TypeError, ValueError) as e:
                 if gpx_path:
                     timeseries = _load_external_timeseries(gpx_path, units)
+                    _apply_timeseries_processing(timeseries)
                     start_date, duration, _source = _resolve_time_alignment(
                         file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
                     )
@@ -818,6 +836,7 @@ def _render_layout_with_data(
                     raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
         else:
             timeseries = _load_external_timeseries(file_path, units)
+            _apply_timeseries_processing(timeseries)
             framemeta = timeseries_to_framemeta(timeseries, units)
 
         create_widgets = layout_from_xml(
