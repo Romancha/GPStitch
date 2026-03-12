@@ -22,16 +22,6 @@ GOPRO_VIDEO = _FIXTURES / "raw_gopro_with_telemetry.MP4"
 
 def _load_video(page: Page, video_path: Path):
     """Load a video file via the local file path input."""
-    # Dismiss render modal if it's visible from a previous server-side job
-    render_modal = page.locator("#render-modal")
-    if render_modal.is_visible():
-        close_btn = page.locator("#render-modal-close")
-        if close_btn.is_visible():
-            close_btn.click()
-        else:
-            render_modal.evaluate("el => el.style.display = 'none'")
-        page.wait_for_timeout(500)
-
     video_input = page.locator("#video-path-input")
     expect(video_input).to_be_visible()
     video_input.fill(str(video_path))

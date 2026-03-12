@@ -94,6 +94,12 @@ def browser_context_args(browser_context_args):
 @pytest.fixture
 def app_page(page: Page, base_url: str, live_server) -> Page:
     """Page navigated to the app root with console log capture."""
+    # Reset server-side job state so tests don't see leftover render modals
+    from gpstitch.services.job_manager import job_manager
+
+    job_manager._jobs.clear()
+    job_manager._current_job_id = None
+
     # Capture console logs for test assertions
     console_logs: list[dict] = []
     page.on("console", lambda msg: console_logs.append({"type": msg.type, "text": msg.text}))
