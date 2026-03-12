@@ -145,25 +145,19 @@ class TestRenderJobConfigOdoOffset:
     def test_set_value(self):
         from gpstitch.models.job import RenderJobConfig
 
-        config = RenderJobConfig(
-            session_id="test", layout="default", output_file="/tmp/out.mp4", odo_offset=1234.5
-        )
+        config = RenderJobConfig(session_id="test", layout="default", output_file="/tmp/out.mp4", odo_offset=1234.5)
         assert config.odo_offset == 1234.5
 
     def test_zero_value(self):
         from gpstitch.models.job import RenderJobConfig
 
-        config = RenderJobConfig(
-            session_id="test", layout="default", output_file="/tmp/out.mp4", odo_offset=0.0
-        )
+        config = RenderJobConfig(session_id="test", layout="default", output_file="/tmp/out.mp4", odo_offset=0.0)
         assert config.odo_offset == 0.0
 
     def test_serialization(self):
         from gpstitch.models.job import RenderJobConfig
 
-        config = RenderJobConfig(
-            session_id="test", layout="default", output_file="/tmp/out.mp4", odo_offset=5678.9
-        )
+        config = RenderJobConfig(session_id="test", layout="default", output_file="/tmp/out.mp4", odo_offset=5678.9)
         data = config.model_dump()
         assert data["odo_offset"] == 5678.9
 

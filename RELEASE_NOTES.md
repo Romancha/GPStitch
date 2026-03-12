@@ -1,5 +1,24 @@
 # Release Notes
 
+## Version 0.10.0 — 12 Mar 2026
+
+### 🎉 Major Features
+
+**Shared GPX Batch Render with Odometer Offset**
+- Batch render multiple videos against a single shared GPX track, with each video receiving an odometer offset calculated from its creation time relative to the track start
+- Overlay shows absolute distance from the beginning of the track, not relative to each video segment
+
+### 🆕 New
+
+- **Timeseries processing for external GPX/FIT files** — Derived metrics (speed, distance, cumulative odometer) are now computed for external telemetry files, matching the processing pipeline used for GoPro data
+
+### 🐞 Fixes
+
+- Fixed `zone_bar` and `bar` widgets ignoring x/y position in the visual editor — they are now wrapped in `<translate>` elements automatically
+- Fixed CLI command generation using `--layout` instead of `--layout-xml` for non-builtin layouts, causing gopro-dashboard.py to reject alternate layout names
+
+---
+
 ## Version 0.9.0 — 10 Mar 2026
 
 ### 🎉 Major Features

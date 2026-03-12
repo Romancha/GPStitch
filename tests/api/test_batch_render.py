@@ -272,7 +272,9 @@ class TestBatchRenderOdoOffset:
             assert job.config.odo_offset is None
 
     @pytest.mark.anyio
-    async def test_odo_offset_not_set_for_per_file_gpx(self, async_client, batch_video_files, shared_gpx_file, temp_dir):
+    async def test_odo_offset_not_set_for_per_file_gpx(
+        self, async_client, batch_video_files, shared_gpx_file, temp_dir
+    ):
         """Per-file GPX should NOT trigger odo_offset calculation (only shared GPX does)."""
         per_file_gpx = temp_dir / "per_file.gpx"
         per_file_gpx.write_text(
