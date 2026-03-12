@@ -273,27 +273,27 @@ class TestWrapperScript:
 
         assert hasattr(gopro_dashboard_wrapper, "main")
         assert hasattr(gopro_dashboard_wrapper, "find_gopro_dashboard")
-        assert hasattr(gopro_dashboard_wrapper, "_extract_srt_args")
+        assert hasattr(gopro_dashboard_wrapper, "_extract_custom_args")
 
 
-class TestExtractSrtArgs:
-    """Test _extract_srt_args() in wrapper script."""
+class TestExtractCustomArgs:
+    """Test _extract_custom_args() in wrapper script."""
 
     def test_extracts_srt_source(self, monkeypatch):
         import sys
 
-        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
 
         monkeypatch.setattr(sys, "argv", ["script", "--gpx", "track.gpx", "--ts-srt-source", "/path/to/file.srt"])
-        srt_path, video_path = _extract_srt_args()
-        assert srt_path == "/path/to/file.srt"
-        assert video_path is None
+        result = _extract_custom_args()
+        assert result["srt_path"] == "/path/to/file.srt"
+        assert result["video_path"] is None
         assert sys.argv == ["script", "--gpx", "track.gpx"]
 
     def test_extracts_both_args(self, monkeypatch):
         import sys
 
-        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
 
         monkeypatch.setattr(
             sys,
@@ -308,33 +308,34 @@ class TestExtractSrtArgs:
                 "t.gpx",
             ],
         )
-        srt_path, video_path = _extract_srt_args()
-        assert srt_path == "/path/to/file.srt"
-        assert video_path == "/path/to/video.mp4"
+        result = _extract_custom_args()
+        assert result["srt_path"] == "/path/to/file.srt"
+        assert result["video_path"] == "/path/to/video.mp4"
         assert sys.argv == ["script", "--gpx", "t.gpx"]
 
     def test_no_srt_args_returns_none(self, monkeypatch):
         import sys
 
-        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
 
         monkeypatch.setattr(sys, "argv", ["script", "--gpx", "track.gpx", "--layout", "default"])
-        srt_path, video_path = _extract_srt_args()
-        assert srt_path is None
-        assert video_path is None
+        result = _extract_custom_args()
+        assert result["srt_path"] is None
+        assert result["video_path"] is None
+        assert result["odo_offset"] is None
         assert sys.argv == ["script", "--gpx", "track.gpx", "--layout", "default"]
 
     def test_extracts_args_at_end(self, monkeypatch):
         import sys
 
-        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_srt_args
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
 
         monkeypatch.setattr(
             sys, "argv", ["script", "--gpx", "t.gpx", "--ts-srt-source", "/a.srt", "--ts-srt-video", "/v.mp4"]
         )
-        srt_path, video_path = _extract_srt_args()
-        assert srt_path == "/a.srt"
-        assert video_path == "/v.mp4"
+        result = _extract_custom_args()
+        assert result["srt_path"] == "/a.srt"
+        assert result["video_path"] == "/v.mp4"
         assert sys.argv == ["script", "--gpx", "t.gpx"]
 
 

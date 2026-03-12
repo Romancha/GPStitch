@@ -60,6 +60,7 @@ class RenderJobConfig(BaseModel):
     ffmpeg_profile: str | None = None  # FFmpeg encoding profile name
     gps_dop_max: float = DEFAULT_GPS_DOP_MAX
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX
+    odo_offset: float | None = None  # Initial odometer value in meters (for shared GPX batch)
 
     @field_validator("video_time_alignment", mode="before")
     @classmethod

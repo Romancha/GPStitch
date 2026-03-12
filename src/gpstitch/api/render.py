@@ -1,6 +1,7 @@
 """Render job API endpoints."""
 
 import contextlib
+import datetime
 import logging
 import os
 from pathlib import Path
@@ -128,6 +129,7 @@ class PreCheckRequest(BaseModel):
     """Request to pre-check files before batch render."""
 
     files: list[PreCheckFileInput] = Field(min_length=1, max_length=100)
+    shared_gpx_path: str | None = None
 
 
 class OverwriteConflict(BaseModel):
@@ -194,8 +196,13 @@ async def pre_check_batch_files(request: PreCheckRequest) -> PreCheckResponse:
         # Analyze GPS quality
         suffix = video_path.suffix.lower()
         if suffix in [".mp4", ".mov", ".avi"]:
-            # If external GPX/FIT provided, mark as skipped
-            if file_input.gpx_path:
+            # If external GPX/FIT provided (per-file or shared), mark as skipped
+            effective_gpx = file_input.gpx_path or request.shared_gpx_path
+            gpx_exists = False
+            if effective_gpx:
+                with contextlib.suppress(ValueError, OSError):
+                    gpx_exists = Path(effective_gpx).expanduser().resolve().exists()
+            if gpx_exists:
                 gps_files.append(
                     GPSFileInfo(
                         video_path=str(video_path),
@@ -425,6 +432,7 @@ class BatchRenderRequest(BaseModel):
     """Request to start batch render jobs."""
 
     files: list[BatchFileInput] = Field(min_length=1)
+    shared_gpx_path: str | None = None
     layout: str = "default-1920x1080"
     layout_xml_path: str | None = None
     units_speed: str = DEFAULT_UNITS_SPEED
@@ -479,6 +487,37 @@ class BatchStatusResponse(BaseModel):
     failed: int
     cancelled: int
     current_job: BatchJobDetail | None = None
+
+
+def _calculate_batch_odo_offset(
+    video_path: Path,
+    gpx_path: Path,
+    time_offset_seconds: int = 0,
+    video_time_alignment: str = "auto",
+) -> float | None:
+    """Calculate odo offset for a video in a shared GPX batch.
+
+    Extracts video creation time, applies time offset (only in "manual" alignment
+    mode, matching render_service behavior), then calculates the cumulative
+    distance from GPX track start to that time.
+
+    Returns offset in meters, or None if creation time cannot be determined.
+    """
+    from gpstitch.services.renderer import _extract_creation_time, calculate_odo_offset
+
+    creation_time = _extract_creation_time(video_path)
+    if creation_time is None:
+        logger.warning("Cannot determine creation time for %s, skipping odo offset", video_path)
+        return None
+
+    if time_offset_seconds and video_time_alignment == "manual":
+        creation_time = creation_time + datetime.timedelta(seconds=time_offset_seconds)
+
+    try:
+        return calculate_odo_offset(gpx_path, creation_time)
+    except Exception as e:
+        logger.warning("Failed to calculate odo offset for %s: %s", video_path, e)
+        return None
 
 
 @router.post("/render/batch", response_model=BatchRenderResponse)
@@ -542,10 +581,15 @@ async def start_batch_render(request: BatchRenderRequest, background_tasks: Back
                 role=FileRole.PRIMARY,
             )
 
-            # Add secondary GPX/FIT if provided
-            if file_input.gpx_path:
-                gpx_path = Path(file_input.gpx_path)
-                if gpx_path.exists():
+            # Add secondary GPX/FIT if provided (per-file takes priority over shared)
+            effective_gpx = file_input.gpx_path or request.shared_gpx_path
+            if effective_gpx:
+                try:
+                    gpx_path = Path(effective_gpx).expanduser().resolve()
+                except (ValueError, OSError):
+                    logger.warning(f"Batch: invalid GPX/FIT path: {effective_gpx}")
+                    gpx_path = None
+                if gpx_path and gpx_path.exists():
                     gpx_suffix = gpx_path.suffix.lower()
                     gpx_type = {".gpx": "gpx", ".fit": "fit", ".srt": "srt"}.get(gpx_suffix, "gpx")
                     file_manager.add_file(
@@ -555,13 +599,29 @@ async def start_batch_render(request: BatchRenderRequest, background_tasks: Back
                         file_type=gpx_type,
                         role=FileRole.SECONDARY,
                     )
-                else:
+                elif gpx_path:
                     logger.warning(f"Batch: GPX/FIT file not found: {gpx_path}")
 
             # Auto-generate output filename if not specified
             output_file = file_input.output_path
             if not output_file:
                 output_file = str(video_path.parent / f"{video_path.stem}_overlay.mp4")
+
+            # Calculate odo_offset when using shared GPX (not per-file override)
+            odo_offset = None
+            if (
+                request.shared_gpx_path
+                and not file_input.gpx_path
+                and file_type == "video"
+                and gpx_path
+                and gpx_path.exists()
+            ):
+                odo_offset = _calculate_batch_odo_offset(
+                    video_path,
+                    gpx_path,
+                    request.time_offset_seconds,
+                    request.video_time_alignment,
+                )
 
             # Create job config
             config = RenderJobConfig(
@@ -580,6 +640,7 @@ async def start_batch_render(request: BatchRenderRequest, background_tasks: Back
                 ffmpeg_profile=request.ffmpeg_profile,
                 gps_dop_max=request.gps_dop_max,
                 gps_speed_max=request.gps_speed_max,
+                odo_offset=odo_offset,
             )
 
             # Create job with batch_id

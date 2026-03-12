@@ -84,6 +84,104 @@ class TestBatchRenderUI:
 
 
 @pytest.mark.e2e
+class TestBatchRenderSharedGpx:
+    """Test Shared GPX field in Batch Render modal."""
+
+    def test_shared_gpx_field_visible(self, app_page: Page):
+        """Test that shared GPX input field is visible in batch modal."""
+        app_page.locator("#btn-batch-render").click()
+
+        modal = app_page.locator("#batch-render-modal")
+        expect(modal).to_be_visible()
+
+        shared_gpx = modal.locator("#batch-shared-gpx")
+        expect(shared_gpx).to_be_visible()
+
+    def test_time_offset_field_visible(self, app_page: Page):
+        """Test that time offset input field is visible in batch modal."""
+        app_page.locator("#btn-batch-render").click()
+
+        modal = app_page.locator("#batch-render-modal")
+        expect(modal).to_be_visible()
+
+        time_offset = modal.locator("#batch-time-offset")
+        expect(time_offset).to_be_visible()
+        expect(time_offset).to_have_value("0")
+
+    def test_shared_gpx_changes_help_text(self, app_page: Page):
+        """Test that entering shared GPX changes help text and hint."""
+        app_page.locator("#btn-batch-render").click()
+
+        modal = app_page.locator("#batch-render-modal")
+        expect(modal).to_be_visible()
+
+        help_text = modal.locator("#batch-help-text")
+        files_hint = modal.locator("#batch-files-hint")
+
+        # Initially shows per-file GPX hint
+        expect(files_hint).to_contain_text("video.mp4, track.gpx")
+
+        # Enter a shared GPX path
+        shared_gpx = modal.locator("#batch-shared-gpx")
+        shared_gpx.fill("/path/to/shared.gpx")
+        app_page.wait_for_timeout(200)
+
+        # Hint should change to video-only format
+        expect(files_hint).to_contain_text("one per line")
+        expect(help_text).to_contain_text("Per-file GPX pairs are ignored")
+
+        # Clear shared GPX
+        shared_gpx.fill("")
+        app_page.wait_for_timeout(200)
+
+        # Should revert to original hint
+        expect(files_hint).to_contain_text("video.mp4, track.gpx")
+
+    def test_shared_gpx_disables_per_file_gpx_parsing(self, app_page: Page):
+        """Test that per-file GPX is ignored when shared GPX is set."""
+        app_page.locator("#btn-batch-render").click()
+
+        modal = app_page.locator("#batch-render-modal")
+        expect(modal).to_be_visible()
+
+        # Set shared GPX
+        shared_gpx = modal.locator("#batch-shared-gpx")
+        shared_gpx.fill("/path/to/shared.gpx")
+
+        # Enter video with per-file GPX pair
+        files_input = modal.locator("#batch-files-input")
+        files_input.fill("/path/to/video1.mp4, /path/to/per_file.gpx\n/path/to/video2.mp4")
+        app_page.wait_for_timeout(200)
+
+        # File count should be 2
+        file_count = modal.locator("#batch-file-count")
+        expect(file_count).to_contain_text("2")
+
+    def test_shared_gpx_fields_reset_on_reopen(self, app_page: Page):
+        """Test that shared GPX and time offset reset when modal is reopened."""
+        app_page.locator("#btn-batch-render").click()
+
+        modal = app_page.locator("#batch-render-modal")
+        expect(modal).to_be_visible()
+
+        # Fill in values
+        modal.locator("#batch-shared-gpx").fill("/path/to/shared.gpx")
+        modal.locator("#batch-time-offset").fill("30")
+
+        # Close modal
+        modal.locator("#batch-modal-close").click()
+        app_page.wait_for_timeout(300)
+
+        # Reopen
+        app_page.locator("#btn-batch-render").click()
+        expect(modal).to_be_visible()
+
+        # Fields should be reset
+        expect(modal.locator("#batch-shared-gpx")).to_have_value("")
+        expect(modal.locator("#batch-time-offset")).to_have_value("0")
+
+
+@pytest.mark.e2e
 class TestBatchRenderWithFiles:
     """Test Batch Render with actual file paths."""
 

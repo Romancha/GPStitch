@@ -6,6 +6,7 @@ applying patches for:
 - Timecode extraction and preservation (Final Cut Pro compatibility)
 - Enhanced FFmpeg options (audio copy, metadata preservation)
 - DJI SRT camera metrics preservation (when --ts-srt-source is provided)
+- Odometer offset for shared GPX batch render (when --ts-odo-offset is provided)
 
 Usage:
     python gopro_dashboard_wrapper.py [gopro-dashboard.py arguments...]
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 # Shared with command.py which strips them from user-facing command strings.
 TS_SRT_SOURCE_ARG = "--ts-srt-source"
 TS_SRT_VIDEO_ARG = "--ts-srt-video"
+TS_ODO_OFFSET_ARG = "--ts-odo-offset"
 
 
 def find_gopro_dashboard() -> Path | None:
@@ -67,32 +69,38 @@ def find_gopro_dashboard() -> Path | None:
     return None
 
 
-def _extract_srt_args() -> tuple[str | None, str | None]:
-    """Extract and remove SRT-specific arguments from sys.argv.
+def _extract_custom_args() -> dict:
+    """Extract and remove gpstitch-specific arguments from sys.argv.
 
     These custom args are consumed by the wrapper and must not be passed
     to gopro-dashboard.py (it would error on unknown args).
 
     Returns:
-        Tuple of (srt_path, video_path). Either may be None.
+        Dict with keys: srt_path, video_path, odo_offset. Values may be None.
     """
-    srt_path = None
-    video_path = None
+    result = {"srt_path": None, "video_path": None, "odo_offset": None}
     new_argv = []
     i = 0
     while i < len(sys.argv):
         arg = sys.argv[i]
         if arg == TS_SRT_SOURCE_ARG and i + 1 < len(sys.argv):
-            srt_path = sys.argv[i + 1]
+            result["srt_path"] = sys.argv[i + 1]
             i += 2
         elif arg == TS_SRT_VIDEO_ARG and i + 1 < len(sys.argv):
-            video_path = sys.argv[i + 1]
+            result["video_path"] = sys.argv[i + 1]
+            i += 2
+        elif arg == TS_ODO_OFFSET_ARG and i + 1 < len(sys.argv):
+            try:
+                result["odo_offset"] = float(sys.argv[i + 1])
+            except ValueError:
+                logger.error("Invalid %s value: %s (expected a number)", TS_ODO_OFFSET_ARG, sys.argv[i + 1])
+                sys.exit(1)
             i += 2
         else:
             new_argv.append(arg)
             i += 1
     sys.argv = new_argv
-    return srt_path, video_path
+    return result
 
 
 def main():
@@ -104,15 +112,22 @@ def main():
     apply_patches()
     logger.info("Patches applied successfully")
 
-    # Extract SRT args before passing argv to gopro-dashboard.py
-    srt_path, video_path = _extract_srt_args()
+    # Extract custom args before passing argv to gopro-dashboard.py
+    custom_args = _extract_custom_args()
 
     # Patch GPX loading to use SRT directly (preserves camera metrics)
-    if srt_path:
+    if custom_args["srt_path"]:
         from gpstitch.patches.gpx_patches import patch_gpx_load_for_srt
 
-        patch_gpx_load_for_srt(srt_path, video_path)
-        logger.info(f"SRT GPX patch applied: srt={srt_path}, video={video_path}")
+        patch_gpx_load_for_srt(custom_args["srt_path"], custom_args["video_path"])
+        logger.info(f"SRT GPX patch applied: srt={custom_args['srt_path']}, video={custom_args['video_path']}")
+
+    # Patch calculate_odo to start from offset (for shared GPX batch render)
+    if custom_args["odo_offset"] is not None:
+        from gpstitch.patches.odo_patches import patch_calculate_odo
+
+        patch_calculate_odo(custom_args["odo_offset"])
+        logger.info(f"Odo offset patch applied: {custom_args['odo_offset']} meters")
 
     # Find the original gopro-dashboard.py
     dashboard_script = find_gopro_dashboard()
@@ -135,10 +150,8 @@ def main():
         # Propagate exit codes from gopro-dashboard.py
         sys.exit(e.code)
     except Exception as e:
-        # Print error to stdout so render_service captures it in job logs
-        error_msg = f"ERROR: {e}"
-        print(error_msg, flush=True)
-        logger.exception(f"Failed to execute gopro-dashboard.py: {e}")
+        error_msg = f"Failed to execute gopro-dashboard.py: {e}"
+        logger.exception(error_msg)
         sys.exit(1)
 
 

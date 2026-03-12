@@ -494,6 +494,56 @@ def _thin_timeseries(timeseries, target_hz: int):
     return new_ts
 
 
+def calculate_odo_offset(gpx_path: Path, video_start_time: datetime.datetime) -> float:
+    """Calculate the odometer offset for a video within a shared GPX track.
+
+    Loads the full GPX timeseries, computes cumulative odometer (codo),
+    and returns the codo value at the given video_start_time.
+
+    Args:
+        gpx_path: Path to the GPX file.
+        video_start_time: The start time of the video (timezone-aware).
+
+    Returns:
+        Odometer offset in meters (float).
+    """
+    from gopro_overlay.units import units
+
+    timeseries = _load_external_timeseries(gpx_path, units)
+    _apply_timeseries_processing(timeseries)
+
+    entries = timeseries.items()
+    if not entries:
+        return 0.0
+
+    # Align timezone awareness between video_start_time and timeseries
+    ts_min = entries[0].dt
+    if video_start_time.tzinfo is not None and ts_min.tzinfo is None:
+        video_start_time = video_start_time.replace(tzinfo=None)
+    elif video_start_time.tzinfo is None and ts_min.tzinfo is not None:
+        video_start_time = video_start_time.replace(tzinfo=ts_min.tzinfo)
+
+    # If video starts before the track, offset is 0
+    if video_start_time <= entries[0].dt:
+        return 0.0
+
+    # If video starts after the track ends, return the final codo
+    if video_start_time >= entries[-1].dt:
+        last_codo = entries[-1].codo
+        return float(last_codo.magnitude) if last_codo is not None else 0.0
+
+    # Find the closest entry at or before video_start_time
+    best_entry = entries[0]
+    for entry in entries:
+        if entry.dt <= video_start_time:
+            best_entry = entry
+        else:
+            break
+
+    codo = best_entry.codo
+    return float(codo.magnitude) if codo is not None else 0.0
+
+
 def render_preview(
     file_path: Path,
     layout: str,
@@ -937,6 +987,7 @@ def generate_cli_command(
     ffmpeg_profile: str | None = None,
     gps_dop_max: float = DEFAULT_GPS_DOP_MAX,
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX,
+    odo_offset: float | None = None,
 ) -> tuple[str, list[str]]:
     """Generate the CLI command for full video processing.
 
@@ -1153,5 +1204,10 @@ def generate_cli_command(
     elif primary_type == "srt":
         # No --ts-srt-video: SRT-only mode has no video for tz-offset estimation
         cmd_parts.append(f"--ts-srt-source {shlex.quote(primary_path)}")
+
+    # Pass odo offset for shared GPX batch render.
+    # The wrapper strips this arg and patches calculate_odo() to start from offset.
+    if odo_offset is not None:
+        cmd_parts.append(f"--ts-odo-offset {odo_offset:.3f}")
 
     return " ".join(cmd_parts), temp_files

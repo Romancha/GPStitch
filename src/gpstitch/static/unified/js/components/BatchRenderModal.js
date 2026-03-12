@@ -32,7 +32,31 @@ class BatchRenderModal {
                     <div class="modal-body">
                         <!-- Input View -->
                         <div id="batch-input-view">
-                            <p class="help-text">
+                            <div class="form-group">
+                                <label>Shared GPX/FIT Track <small>(optional)</small></label>
+                                <input
+                                    type="text"
+                                    id="batch-shared-gpx"
+                                    placeholder="/path/to/shared_track.gpx"
+                                    class="form-control"
+                                />
+                                <small class="form-hint">Single GPS track applied to all videos (e.g., Garmin watch recording)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Time Offset <small>(seconds)</small></label>
+                                <input
+                                    type="number"
+                                    id="batch-time-offset"
+                                    value="0"
+                                    step="1"
+                                    class="form-control"
+                                    style="width: 120px;"
+                                />
+                                <small class="form-hint">Adjust time alignment between video and GPS track</small>
+                            </div>
+
+                            <p class="help-text" id="batch-help-text">
                                 Enter file paths, one per line.<br>
                                 For video + GPX/FIT pairs, separate with comma.
                             </p>
@@ -45,7 +69,7 @@ class BatchRenderModal {
 /path/to/video3.mp4"
                                     rows="8"
                                 ></textarea>
-                                <small class="form-hint">Format: video.mp4 or video.mp4, track.gpx</small>
+                                <small id="batch-files-hint" class="form-hint">Format: video.mp4 or video.mp4, track.gpx</small>
                             </div>
 
                             <div class="batch-preview">
@@ -171,6 +195,12 @@ class BatchRenderModal {
         // Pre-check elements
         this.preChecksCheckbox = document.getElementById('batch-pre-checks');
         this.analyzingEl = document.getElementById('batch-analyzing');
+
+        // Shared GPX elements
+        this.sharedGpxInput = document.getElementById('batch-shared-gpx');
+        this.timeOffsetInput = document.getElementById('batch-time-offset');
+        this.helpText = document.getElementById('batch-help-text');
+        this.filesHint = document.getElementById('batch-files-hint');
     }
 
     _attachEventListeners() {
@@ -180,6 +210,8 @@ class BatchRenderModal {
         this.startBtn.addEventListener('click', () => this._startBatchRender());
 
         this.filesInput.addEventListener('input', () => this._updateFileCount());
+
+        this.sharedGpxInput.addEventListener('input', () => this._onSharedGpxChange());
 
         this.logToggleBtn.addEventListener('click', () => {
             const isHidden = this.logContent.style.display === 'none';
@@ -233,6 +265,19 @@ class BatchRenderModal {
         }
     }
 
+    _onSharedGpxChange() {
+        const hasSharedGpx = this.sharedGpxInput.value.trim().length > 0;
+        if (hasSharedGpx) {
+            this.helpText.innerHTML = 'Enter video file paths, one per line.<br>Per-file GPX pairs are ignored when shared GPX is set.';
+            this.filesHint.textContent = 'Format: video.mp4 (one per line)';
+            this.filesInput.placeholder = '/path/to/video1.mp4\n/path/to/video2.mp4\n/path/to/video3.mp4';
+        } else {
+            this.helpText.innerHTML = 'Enter file paths, one per line.<br>For video + GPX/FIT pairs, separate with comma.';
+            this.filesHint.textContent = 'Format: video.mp4 or video.mp4, track.gpx';
+            this.filesInput.placeholder = '/path/to/video1.mp4\n/path/to/video2.mp4, /path/to/track2.gpx\n/path/to/video3.mp4';
+        }
+    }
+
     _updateFileCount() {
         const files = this._parseFileInput();
         this.fileCountEl.textContent = files.length;
@@ -256,6 +301,7 @@ class BatchRenderModal {
         const text = this.filesInput.value.trim();
         if (!text) return [];
 
+        const hasSharedGpx = this.sharedGpxInput && this.sharedGpxInput.value.trim().length > 0;
         const lines = text.split('\n').map(l => l.trim()).filter(l => l);
         const files = [];
 
@@ -269,7 +315,8 @@ class BatchRenderModal {
 
             files.push({
                 video_path: videoPath,
-                gpx_path: parts[1] ? this._cleanPath(parts[1]) : null,
+                // Ignore per-file GPX when shared GPX is set
+                gpx_path: (!hasSharedGpx && parts[1]) ? this._cleanPath(parts[1]) : null,
             });
         }
 
@@ -462,10 +509,15 @@ class BatchRenderModal {
      * Call pre-check API to get overwrite conflicts and GPS issues
      */
     async _preCheckFiles(files) {
+        const payload = { files: files };
+        const sharedGpx = this.sharedGpxInput?.value?.trim();
+        if (sharedGpx) {
+            payload.shared_gpx_path = sharedGpx;
+        }
         const response = await fetch('/api/render/pre-check', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: files })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
@@ -515,8 +567,13 @@ class BatchRenderModal {
             }
         }
 
+        // Get shared GPX and time offset from batch modal inputs
+        const sharedGpxPath = this.sharedGpxInput.value.trim() || null;
+        const batchTimeOffset = parseInt(this.timeOffsetInput.value, 10) || 0;
+
         const request = {
             files: files,
+            shared_gpx_path: sharedGpxPath,
             layout: layout,
             layout_xml_path: layoutXmlPath,
             units_speed: this.state.quickConfig?.unitsSpeed || 'kph',
@@ -526,7 +583,7 @@ class BatchRenderModal {
             map_style: this.state.quickConfig?.mapStyle || 'osm',
             gpx_merge_mode: this.state.quickConfig?.gpxMergeMode || 'OVERWRITE',
             video_time_alignment: this.state.quickConfig?.videoTimeAlignment || 'auto',
-            time_offset_seconds: this.state.quickConfig?.timeOffsetSeconds || 0,
+            time_offset_seconds: batchTimeOffset,
             ffmpeg_profile: this.state.quickConfig?.ffmpegProfile || null,
             gps_dop_max: this.state.quickConfig?.gpsDopMax || 20,
             gps_speed_max: this.state.quickConfig?.gpsSpeedMax || 200,
@@ -771,6 +828,9 @@ class BatchRenderModal {
         this.currentJobId = null;
         this._statusRequestPending = false;
         this._logsRequestPending = false;
+        this.sharedGpxInput.value = '';
+        this.timeOffsetInput.value = '0';
+        this._onSharedGpxChange();
         this.filesInput.value = '';
         this._updateFileCount();
         this._showInputView();
