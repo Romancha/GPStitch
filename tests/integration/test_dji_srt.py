@@ -224,6 +224,31 @@ class TestDjiSrtPreviewRender:
         assert width == 1920
         assert height == 1080
 
+    def test_render_preview_dji_video_with_srt_auto_alignment(
+        self, integration_test_dji_video, integration_test_dji_srt
+    ):
+        """Render preview with DJI video + SRT and auto time alignment.
+
+        Regression test: auto alignment extracts creation_time (UTC) from video
+        metadata while SRT timestamps are naive local time. Without proper
+        timezone conversion, the time window has zero overlap with SRT data,
+        producing an empty framelist and IndexError.
+        """
+        from gpstitch.services.renderer import render_preview
+
+        png_bytes, width, height = render_preview(
+            file_path=integration_test_dji_video,
+            layout="dji-drone-1920x1080",
+            frame_time_ms=0,
+            gpx_path=integration_test_dji_srt,
+            video_time_alignment="auto",
+        )
+
+        assert len(png_bytes) > 0
+        assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        assert width == 1920
+        assert height == 1080
+
     def test_render_preview_srt_only(self, integration_test_dji_srt):
         """Render preview using SRT file as primary (overlay-only mode)."""
         from gpstitch.services.renderer import render_preview

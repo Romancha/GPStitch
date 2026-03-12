@@ -410,15 +410,28 @@ def _resolve_time_alignment(
 
 
 def _align_timezone(start_date, timeseries):
-    """Ensure start_date timezone awareness matches the timeseries data.
+    """Align start_date timezone with the timeseries data.
 
-    SRT timeseries may produce naive datetimes while start_date is always
-    timezone-aware. This prevents TypeError on datetime comparison.
+    SRT timeseries produces naive datetimes in the drone's local time,
+    while start_date from video metadata is UTC-aware. Simply stripping
+    tzinfo would leave a multi-hour gap (e.g. UTC 07:21 vs local 10:21).
+
+    Instead, estimate the UTC offset by comparing start_date with the
+    timeseries midpoint and round to the nearest 15-minute timezone
+    boundary, then convert start_date to the local time domain.
     """
-    if start_date is None or timeseries.min is None:
+    if start_date is None or len(timeseries) == 0:
         return start_date
     if start_date.tzinfo is not None and timeseries.min.tzinfo is None:
-        return start_date.replace(tzinfo=None)
+        # start_date is UTC-aware, timeseries is naive local time.
+        # Estimate the local timezone offset from the data.
+        start_naive_utc = start_date.replace(tzinfo=None)
+        ts_mid = timeseries.min + (timeseries.max - timeseries.min) / 2
+        diff_seconds = (ts_mid - start_naive_utc).total_seconds()
+        # Round to nearest 15 minutes (handles UTC+5:30, UTC+5:45, etc.)
+        quarter_hours = round(diff_seconds / 900)
+        tz_offset = datetime.timedelta(seconds=quarter_hours * 900)
+        return start_naive_utc + tz_offset
     if start_date.tzinfo is None and timeseries.min.tzinfo is not None:
         return start_date.replace(tzinfo=timeseries.min.tzinfo)
     return start_date
