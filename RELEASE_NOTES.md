@@ -1,5 +1,15 @@
 # Release Notes
 
+## Version 0.10.2 — 13 Mar 2026
+
+### 🐞 Fixes
+
+- Made `pycairo` an optional dependency so `pipx install gpstitch` succeeds on systems without cairo system libraries ([#5](https://github.com/Romancha/GPStitch/issues/5))
+  - Cairo layouts (`example`, `example-2`) are now detected at runtime and shown as unavailable in the UI when pycairo is not installed
+  - Install with cairo support: `pipx install 'gpstitch[cairo]'` or add to existing: `pipx inject gpstitch pycairo`
+
+---
+
 ## Version 0.10.1 — 12 Mar 2026
 
 ### 🐞 Fixes
