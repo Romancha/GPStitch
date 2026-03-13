@@ -25,7 +25,9 @@ from gpstitch.constants import (
     DEFAULT_UNITS_DISTANCE,
     DEFAULT_UNITS_SPEED,
     DEFAULT_UNITS_TEMPERATURE,
+    PYCAIRO_INSTALL_HINT,
     UNIT_OPTIONS,
+    is_pycairo_available,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,6 +105,7 @@ class LayoutInfo:
     display_name: str
     width: int
     height: int
+    requires_cairo: bool = False
 
 
 def _discover_local_layouts() -> list[str]:
@@ -111,6 +114,31 @@ def _discover_local_layouts() -> list[str]:
     if not layouts_dir.is_dir():
         return []
     return sorted(p.stem for p in layouts_dir.glob("*.xml"))
+
+
+def _layout_requires_cairo(name: str) -> bool:
+    """Check if a layout XML contains cairo widgets."""
+    # Check local layouts first
+    local_path = Path(__file__).parent.parent / "layouts" / f"{name}.xml"
+    if local_path.exists():
+        try:
+            content = local_path.read_text()
+            return "cairo" in content.lower()
+        except OSError:
+            return False
+
+    # Check gopro-overlay built-in layouts
+    try:
+        from importlib.resources import as_file, files
+
+        from gopro_overlay import layouts as gopro_layouts
+
+        ref = files(gopro_layouts) / f"{name}.xml"
+        with as_file(ref) as path:
+            content = path.read_text()
+            return "cairo" in content.lower()
+    except Exception:
+        return False
 
 
 def get_available_layouts() -> list[LayoutInfo]:
@@ -145,6 +173,7 @@ def get_available_layouts() -> list[LayoutInfo]:
                 display_name=display_name,
                 width=width,
                 height=height,
+                requires_cairo=_layout_requires_cairo(name),
             )
         )
 
@@ -588,6 +617,10 @@ def render_preview(
     from gopro_overlay.timeunits import timeunits
     from gopro_overlay.units import units
 
+    # Check if layout requires cairo
+    if _layout_requires_cairo(layout) and not is_pycairo_available():
+        raise ValueError(PYCAIRO_INSTALL_HINT)
+
     suffix = file_path.suffix.lower()
 
     # Set up converters with specified units
@@ -753,6 +786,10 @@ async def render_preview_from_layout(
 
     # Convert layout to XML
     xml_content = xml_converter.layout_to_xml(layout)
+
+    # Check if layout contains cairo widgets
+    if "cairo" in xml_content.lower() and not is_pycairo_available():
+        raise ValueError(PYCAIRO_INSTALL_HINT)
 
     width = layout.canvas.width
     height = layout.canvas.height

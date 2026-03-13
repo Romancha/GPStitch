@@ -302,6 +302,12 @@ body {
     margin-left: auto;
 }
 
+.widget-item.cairo-unavailable {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 /* Canvas Area */
 .canvas-area {
     flex: 1;

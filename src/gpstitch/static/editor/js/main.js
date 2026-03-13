@@ -24,6 +24,7 @@ async function initEditor() {
     // Load widget metadata
     const metadata = await apiClient.getWidgetMetadata();
     editorState.widgetMetadata = metadata.widgets;
+    editorState.cairoAvailable = metadata.cairo_available || false;
 
     // Index by type
     editorState.widgetMetadataByType = {};

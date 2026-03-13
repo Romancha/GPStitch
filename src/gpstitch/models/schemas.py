@@ -106,12 +106,14 @@ class LayoutInfo(BaseModel):
     display_name: str
     width: int
     height: int
+    requires_cairo: bool = False
 
 
 class LayoutsResponse(BaseModel):
     """Response from layouts endpoint."""
 
     layouts: list[LayoutInfo]
+    cairo_available: bool = False
 
 
 class UnitOption(BaseModel):

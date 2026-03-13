@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gpstitch"
-version = "0.10.1"
+version = "0.10.2"
 description = "Web UI for telemetry video overlay configuration and preview"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
@@ -23,7 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "gopro-overlay[cairo]>=0.129.0",
+    "gopro-overlay>=0.129.0",
     "fastapi>=0.128.0",
     "uvicorn[standard]>=0.40.0",
     "python-multipart>=0.0.22",
@@ -33,6 +33,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+cairo = [
+    "pycairo>=1.28.0",
+]
 dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",

@@ -81,9 +81,13 @@ class UnifiedApp {
         // Load layouts
         const layoutsResponse = await fetch('/api/layouts');
         const layoutsData = await layoutsResponse.json();
+        const cairoAvailable = layoutsData.cairo_available || false;
         this._populateSelect(this.layoutSelect, layoutsData.layouts.map(l => ({
             value: l.name,
-            label: `${l.display_name} (${l.width}x${l.height})`
+            label: l.requires_cairo && !cairoAvailable
+                ? `${l.display_name} (${l.width}x${l.height}) [requires pycairo]`
+                : `${l.display_name} (${l.width}x${l.height})`,
+            disabled: l.requires_cairo && !cairoAvailable,
         })), this.state.quickConfig.layout);
 
         // Load units
@@ -173,6 +177,9 @@ class UnifiedApp {
             const opt = document.createElement('option');
             opt.value = option.value;
             opt.textContent = option.label;
+            if (option.disabled) {
+                opt.disabled = true;
+            }
             if (defaultValue && option.value === defaultValue) {
                 opt.selected = true;
             }

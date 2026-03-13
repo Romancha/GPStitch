@@ -87,3 +87,26 @@ DOP_THRESHOLD_MODERATE = 10.0  # DOP 5-10: Acceptable, some accuracy loss
 # DOP = 99.99: No GPS signal (GoPro default when no lock)
 
 GPS_QUALITY_SCORES = ("excellent", "good", "ok", "poor", "no_signal")
+
+# =============================================================================
+# CAIRO AVAILABILITY
+# =============================================================================
+
+
+def is_pycairo_available() -> bool:
+    """Check if pycairo is installed and usable."""
+    try:
+        import cairo  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+PYCAIRO_INSTALL_HINT = (
+    "This layout uses cairo widgets which require pycairo.\n"
+    "Install: pipx inject gpstitch pycairo\n"
+    "System libraries needed:\n"
+    "  Ubuntu/Debian: sudo apt install libcairo2-dev pkg-config python3-dev\n"
+    "  macOS: brew install cairo pkg-config"
+)

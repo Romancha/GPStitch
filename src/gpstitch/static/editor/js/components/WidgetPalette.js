@@ -76,11 +76,16 @@ class WidgetPalette {
 
     _renderWidgetItem(widget) {
         const cairoClass = widget.requires_cairo ? 'requires-cairo' : '';
+        const cairoUnavailable = widget.requires_cairo && !this.state.cairoAvailable;
+        const disabledClass = cairoUnavailable ? 'cairo-unavailable' : '';
+        const title = cairoUnavailable
+            ? 'Requires pycairo. Install: pipx inject gpstitch pycairo'
+            : widget.description;
         return `
-            <div class="widget-item ${cairoClass}"
-                 draggable="true"
+            <div class="widget-item ${cairoClass} ${disabledClass}"
+                 draggable="${!cairoUnavailable}"
                  data-widget-type="${widget.type}"
-                 title="${widget.description}">
+                 title="${title}">
                 <span class="widget-icon">${widget.icon || widget.type.charAt(0).toUpperCase()}</span>
                 <span class="widget-name">${widget.name}</span>
             </div>

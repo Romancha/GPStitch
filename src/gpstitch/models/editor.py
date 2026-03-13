@@ -92,6 +92,7 @@ class WidgetMetadataResponse(BaseModel):
 
     widgets: list[WidgetMetadata]
     categories: list[str]
+    cairo_available: bool = False
 
 
 class WidgetInstance(BaseModel):

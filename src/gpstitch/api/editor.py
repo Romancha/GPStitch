@@ -31,10 +31,12 @@ router = APIRouter(prefix="/api/editor", tags=["editor"])
 async def get_widget_metadata() -> WidgetMetadataResponse:
     """Get metadata for all available widget types."""
     try:
+        from gpstitch.constants import is_pycairo_available
+
         widgets = widget_registry.get_all_metadata()
         categories = widget_registry.get_categories()
 
-        return WidgetMetadataResponse(widgets=widgets, categories=categories)
+        return WidgetMetadataResponse(widgets=widgets, categories=categories, cairo_available=is_pycairo_available())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -236,6 +238,8 @@ async def get_predefined_layouts():
 
         layouts = get_available_layouts()
 
+        from gpstitch.constants import is_pycairo_available
+
         return {
             "layouts": [
                 {
@@ -243,9 +247,11 @@ async def get_predefined_layouts():
                     "display_name": layout.display_name,
                     "width": layout.width,
                     "height": layout.height,
+                    "requires_cairo": layout.requires_cairo,
                 }
                 for layout in layouts
-            ]
+            ],
+            "cairo_available": is_pycairo_available(),
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

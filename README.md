@@ -88,6 +88,24 @@ gpstitch
 gpstitch --host 127.0.0.1 --port 8080
 ```
 
+#### Optional: Cairo widgets support
+
+Some layouts (e.g. `example`, `example-2`) use cairo-based widgets (gauges, circuit maps). These require `pycairo`, which needs the cairo system library:
+
+```bash
+# 1. Install system library
+# macOS:    brew install cairo pkg-config
+# Ubuntu:   sudo apt install libcairo2-dev pkg-config python3-dev
+
+# 2. Install with cairo support (new install)
+pipx install 'gpstitch[cairo]'
+
+# Or add to existing installation
+pipx inject gpstitch pycairo
+```
+
+Without pycairo, GPStitch works normally — cairo layouts will be marked as unavailable in the UI.
+
 ### From source
 
 ```bash

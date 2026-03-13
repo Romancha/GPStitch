@@ -302,6 +302,26 @@ class RenderService:
             await _clear_current_job()
             return
 
+        # Check if layout requires cairo and pycairo is available
+        from gpstitch.constants import PYCAIRO_INSTALL_HINT, is_pycairo_available
+        from gpstitch.services.renderer import _layout_requires_cairo
+
+        layout_name = config.layout
+        layout_xml = config.layout_xml_path
+        needs_cairo = False
+        if layout_xml:
+            with contextlib.suppress(OSError):
+                needs_cairo = "cairo" in Path(layout_xml).read_text().lower()
+        else:
+            needs_cairo = _layout_requires_cairo(layout_name)
+
+        if needs_cairo and not is_pycairo_available():
+            error = PYCAIRO_INSTALL_HINT
+            await job_manager.update_job_status(job_id, JobStatus.FAILED, error)
+            logger.error(f"Job {job_id}: pycairo not available for cairo layout '{layout_name}'")
+            await _clear_current_job()
+            return
+
         # Find gopro-dashboard.py location
         gopro_dashboard = self._find_gopro_dashboard()
         if not gopro_dashboard:

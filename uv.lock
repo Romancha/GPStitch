@@ -605,18 +605,13 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/69/7e/1a542d1dd2a78afce6384006051c0d04617ab258075d933fb83aecfa1ea0/gopro_overlay-0.129.0-py3-none-any.whl", hash = "sha256:863ea909441efb5eb4b8320d40f510bf7ec7139c777601fb42431d341173a68c", size = 468119, upload-time = "2025-12-22T12:11:32.936Z" },
 ]
 
-[package.optional-dependencies]
-cairo = [
-    { name = "pycairo" },
-]
-
 [[package]]
 name = "gpstitch"
-version = "0.10.0"
+version = "0.10.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
-    { name = "gopro-overlay", extra = ["cairo"] },
+    { name = "gopro-overlay" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
@@ -625,6 +620,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+cairo = [
+    { name = "pycairo" },
+]
 dev = [
     { name = "httpx" },
     { name = "pytest" },
@@ -642,8 +640,9 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.128.0" },
-    { name = "gopro-overlay", extras = ["cairo"], specifier = ">=0.129.0" },
+    { name = "gopro-overlay", specifier = ">=0.129.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
+    { name = "pycairo", marker = "extra == 'cairo'", specifier = ">=1.28.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.2" },
@@ -655,7 +654,7 @@ requires-dist = [
     { name = "setuptools", specifier = "<82" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.40.0" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["cairo", "dev"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "nest-asyncio", specifier = ">=1.6.0" }]
