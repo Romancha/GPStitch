@@ -22,6 +22,7 @@ A visual web interface for creating video overlays with GPS telemetry data. Wrap
 - **Batch Rendering** — Process multiple files with the same settings
 - **Shared GPX Batch Render** — Apply a single GPX track to multiple videos with automatic odometer offset per video
 - **Background Jobs** — Render videos in the background with progress tracking
+- **Overlay-Only Mode** — Render transparent telemetry overlays (no video) for compositing in Final Cut Pro, DaVinci Resolve, etc.
 
 ## Screenshots
 
@@ -65,6 +66,20 @@ Process multiple videos at once with the same overlay settings.
 ### Shared GPX Batch Render
 
 Apply a single GPX track to multiple videos recorded during the same activity. Each video automatically gets an odometer offset calculated from its creation time relative to the GPX track start, so the overlay shows the correct absolute distance from the beginning of the track.
+
+### Overlay-Only Mode
+
+Render telemetry overlays with a transparent background — without any source video. Use a GPX, FIT, or SRT file as the primary input, and GPStitch will generate a video with an alpha channel that you can layer on top of your footage in any video editor (Final Cut Pro, DaVinci Resolve, Premiere Pro, etc.).
+
+**How to use:**
+
+1. Upload a GPX, FIT, or SRT file as the primary file (no video needed)
+2. Configure your overlay layout and widgets as usual
+3. Select an encoding profile with transparency support:
+   - **MOV (PNG)** — Lossless quality, best compatibility with Final Cut Pro and DaVinci Resolve (large files)
+   - **VP9** — Good quality with alpha channel, smaller files
+   - **VP8** — Alpha channel support, widest browser compatibility
+4. Render — the output is a video with a transparent background ready for compositing
 
 ## Requirements
 
