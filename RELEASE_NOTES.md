@@ -1,5 +1,13 @@
 # Release Notes
 
+## Version 0.11.0 — 16 Mar 2026
+
+### 🐞 Fixes
+
+- Fixed output file always getting `.mp4` extension regardless of FFmpeg profile, causing import failures in Final Cut Pro and DaVinci Resolve — now uses `.mov` for PNG codec and `.webm` for VP8/VP9 with alpha channel ([#12](https://github.com/Romancha/GPStitch/issues/12))
+
+---
+
 ## Version 0.10.2 — 13 Mar 2026
 
 ### 🐞 Fixes
