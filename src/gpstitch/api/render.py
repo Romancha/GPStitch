@@ -130,6 +130,7 @@ class PreCheckRequest(BaseModel):
 
     files: list[PreCheckFileInput] = Field(min_length=1, max_length=100)
     shared_gpx_path: str | None = None
+    ffmpeg_profile: str | None = None
 
 
 class OverwriteConflict(BaseModel):
@@ -184,7 +185,10 @@ async def pre_check_batch_files(request: PreCheckRequest) -> PreCheckResponse:
             continue
 
         # Check overwrite conflict
-        output_path = video_path.parent / f"{video_path.stem}_overlay.mp4"
+        from gpstitch.services.renderer import get_output_extension_for_profile
+
+        ext = get_output_extension_for_profile(request.ffmpeg_profile)
+        output_path = video_path.parent / f"{video_path.stem}_overlay{ext}"
         if output_path.exists():
             overwrite_conflicts.append(
                 OverwriteConflict(
@@ -296,9 +300,12 @@ async def start_render(request: RenderJobRequest, background_tasks: BackgroundTa
     # Auto-generate output filename if not specified
     output_file = request.output_file
     if not output_file:
+        from gpstitch.services.renderer import get_output_extension_for_profile
+
         primary_dir = os.path.dirname(primary.file_path)
         primary_name = os.path.splitext(os.path.basename(primary.file_path))[0]
-        output_file = os.path.join(primary_dir, f"{primary_name}_overlay.mp4")
+        ext = get_output_extension_for_profile(request.ffmpeg_profile)
+        output_file = os.path.join(primary_dir, f"{primary_name}_overlay{ext}")
 
     # Create job config
     config = RenderJobConfig(
@@ -605,7 +612,10 @@ async def start_batch_render(request: BatchRenderRequest, background_tasks: Back
             # Auto-generate output filename if not specified
             output_file = file_input.output_path
             if not output_file:
-                output_file = str(video_path.parent / f"{video_path.stem}_overlay.mp4")
+                from gpstitch.services.renderer import get_output_extension_for_profile
+
+                ext = get_output_extension_for_profile(request.ffmpeg_profile)
+                output_file = str(video_path.parent / f"{video_path.stem}_overlay{ext}")
 
             # Calculate odo_offset when using shared GPX (not per-file override)
             odo_offset = None

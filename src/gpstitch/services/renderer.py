@@ -263,6 +263,21 @@ def get_available_map_styles() -> list[dict]:
     return result
 
 
+def get_output_extension_for_profile(ffmpeg_profile: str | None) -> str:
+    """Return the appropriate file extension based on the FFmpeg profile.
+
+    Some profiles require specific container formats:
+    - mov (PNG codec) → .mov (QuickTime, needed for Final Cut Pro / DaVinci Resolve)
+    - vp9/vp8 (alpha channel) → .webm
+    - all others → .mp4
+    """
+    if ffmpeg_profile == "mov":
+        return ".mov"
+    if ffmpeg_profile in ("vp9", "vp8"):
+        return ".webm"
+    return ".mp4"
+
+
 def get_available_ffmpeg_profiles() -> list[dict]:
     """Get available FFmpeg encoding profiles."""
     from gopro_overlay.ffmpeg_profile import builtin_profiles
@@ -1084,7 +1099,8 @@ def generate_cli_command(
     if not output_file:
         primary_dir = os.path.dirname(primary_path)
         primary_name = os.path.splitext(os.path.basename(primary_path))[0]
-        output_file = os.path.join(primary_dir, f"{primary_name}_overlay.mp4")
+        ext = get_output_extension_for_profile(ffmpeg_profile)
+        output_file = os.path.join(primary_dir, f"{primary_name}_overlay{ext}")
 
     # Get canvas dimensions from layout for overlay-size
     canvas_width, canvas_height = None, None
