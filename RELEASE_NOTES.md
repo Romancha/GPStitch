@@ -1,5 +1,20 @@
 # Release Notes
 
+## Version 0.12.0 — 17 Mar 2026
+
+### 🎉 Major Features
+
+**DJI Osmo Action Embedded GPS Support**
+
+Full support for DJI Osmo Action cameras (Action 4/5/6) with DJI GPS Bluetooth Remote Controller — no secondary GPX or SRT file needed.
+
+- **Automatic detection** — Embedded GPS telemetry is identified during upload and shown in the UI
+- **Protobuf decoder** — Extracts GPS data from the DJI meta stream (`djmd` codec) embedded in video files
+- **End-to-end pipeline** — Preview, render, and CLI command generation all work with embedded GPS data out of the box
+- **GPX export** — Extracted GPS is converted to timeseries and GPX for use in the overlay engine
+
+---
+
 ## Version 0.11.0 — 16 Mar 2026
 
 ### 🐞 Fixes
