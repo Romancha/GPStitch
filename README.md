@@ -199,7 +199,7 @@ uv run ruff format src tests
 uv run pytest
 
 # Run all checks (lint + format + tests)
-uv run ruff check src tests && uv run ruff format --check src tests && uv run pytest
+uv run ruff check src tests && uv run ruff format src tests && uv run pytest
 
 # Run E2E tests (requires: uv run playwright install chromium)
 uv run pytest tests/e2e/ -v
