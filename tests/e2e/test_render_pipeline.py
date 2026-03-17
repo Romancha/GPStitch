@@ -4,6 +4,7 @@ Tests all supported file combinations with real test fixtures:
 - GoPro video with embedded telemetry (standalone)
 - MOV video + external GPX
 - DJI video + SRT telemetry (auto-detected)
+- DJI Action video with embedded GPS (DJI meta stream)
 """
 
 import contextlib
@@ -21,6 +22,7 @@ MOV_VIDEO = _FIXTURES / "IMG_2927.MOV"
 RUN_GPX = _FIXTURES / "hiking_activity.gpx"
 DJI_VIDEO = _FIXTURES / "DJI_20250723102139_0001_D.MP4"
 DJI_SRT = _FIXTURES / "DJI_20250723102139_0001_D.SRT"
+DJI_ACTION_VIDEO = _FIXTURES / "DJI_20260315180109_0003_D_5s_fixture.MP4"
 
 
 def _load_video(page: Page, video_path: Path):
@@ -299,3 +301,86 @@ class TestDjiSrtRenderPipeline:
         assert "--use-gpx-only" in cmd_text, f"DJI+SRT command must include --use-gpx-only, got:\n{cmd_text}"
         assert "--gpx" in cmd_text, "Command must include --gpx flag"
         assert ".gpx" in cmd_text, "SRT should be converted to GPX"
+
+
+@pytest.mark.e2e
+class TestDjiActionRenderPipeline:
+    """Full render pipeline for DJI Action video with embedded GPS (DJI meta stream)."""
+
+    def test_dji_action_gps_autodetected_on_upload(self, app_page: Page):
+        """Load DJI Action video -> verify GPS autodetected (no secondary file needed)."""
+        if not DJI_ACTION_VIDEO.exists():
+            pytest.skip(f"Test fixture not found: {DJI_ACTION_VIDEO}")
+
+        _load_video(app_page, DJI_ACTION_VIDEO)
+
+        # Verify video loaded
+        file_context = app_page.locator("#file-context")
+        expect(file_context).to_be_visible()
+
+        # DJI Action with embedded GPS should show GPS badge
+        gps_badge = app_page.locator(".gps-badge")
+        expect(gps_badge).to_be_visible(timeout=5000)
+
+        # Verify file details show video info (resolution, FPS)
+        file_details = app_page.locator(".file-context-details")
+        expect(file_details).to_be_visible()
+        expect(file_details).to_contain_text(re.compile(r"\d+x\d+"))
+
+    def test_dji_action_renders_successfully(self, app_page: Page):
+        """Load DJI Action video -> render -> verify completed."""
+        if not DJI_ACTION_VIDEO.exists():
+            pytest.skip(f"Test fixture not found: {DJI_ACTION_VIDEO}")
+
+        _cleanup_output(DJI_ACTION_VIDEO)
+        try:
+            _load_video(app_page, DJI_ACTION_VIDEO)
+
+            # Verify GPS autodetected
+            gps_badge = app_page.locator(".gps-badge")
+            expect(gps_badge).to_be_visible(timeout=5000)
+
+            # Wait for preview to settle
+            app_page.wait_for_timeout(3000)
+
+            # Render
+            status = _start_render_and_wait(app_page, timeout_ms=120000)
+            error = _get_render_error(app_page)
+            assert status == "Completed", f"Render failed: {error}"
+
+            # Verify output file exists
+            output = DJI_ACTION_VIDEO.parent / f"{DJI_ACTION_VIDEO.stem}_overlay.mp4"
+            assert output.exists(), f"Output file not created: {output}"
+            assert output.stat().st_size > 0, "Output file is empty"
+        finally:
+            _cleanup_output(DJI_ACTION_VIDEO)
+
+    def test_dji_action_command_uses_gpx_only_flag(self, app_page: Page):
+        """Verify generated command for DJI Action includes --use-gpx-only."""
+        if not DJI_ACTION_VIDEO.exists():
+            pytest.skip(f"Test fixture not found: {DJI_ACTION_VIDEO}")
+
+        _load_video(app_page, DJI_ACTION_VIDEO)
+
+        # Verify GPS autodetected
+        gps_badge = app_page.locator(".gps-badge")
+        expect(gps_badge).to_be_visible(timeout=5000)
+
+        # Click "Get Command" to generate CLI command
+        cmd_btn = app_page.locator("#btn-generate-cmd")
+        expect(cmd_btn).to_be_visible()
+        cmd_btn.click()
+
+        # Wait for command modal to appear
+        cmd_modal = app_page.locator("#command-modal")
+        expect(cmd_modal).to_have_class(re.compile(r"visible"), timeout=5000)
+
+        # Read command text
+        cmd_output = app_page.locator("#command-output")
+        cmd_text = cmd_output.text_content() or ""
+        assert len(cmd_text) > 0, "Command output should not be empty"
+
+        # Verify critical flags for DJI Action embedded GPS
+        assert "--use-gpx-only" in cmd_text, f"DJI Action command must include --use-gpx-only, got:\n{cmd_text}"
+        assert "--gpx" in cmd_text, "Command must include --gpx flag"
+        assert ".gpx" in cmd_text, "DJI meta GPS should be converted to GPX"

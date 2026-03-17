@@ -154,8 +154,10 @@ async def use_local_file(request: LocalFileRequest) -> UploadResponse:
     )
 
     # Auto-detect matching SRT/GPX/FIT file for video (e.g. DJI_0001.MP4 → DJI_0001.SRT)
+    # Skip auto-detection if video has embedded DJI meta GPS (self-contained)
     files = [file_info]
-    if file_type == "video" and settings.local_mode:
+    has_embedded_gps = video_metadata and video_metadata.has_dji_meta
+    if file_type == "video" and settings.local_mode and not has_embedded_gps:
         auto_secondary = _find_matching_telemetry(file_path)
         if auto_secondary:
             try:

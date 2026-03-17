@@ -15,6 +15,7 @@ A visual web interface for creating video overlays with GPS telemetry data. Wrap
 - **Advanced Mode** — Visual drag-and-drop editor for creating custom overlay layouts
 - **Live Preview** — See your overlay in real-time as you configure it
 - **DJI Drone Support** — Automatic SRT telemetry parsing with timezone and time alignment auto-detection
+- **DJI Osmo Action Support** — Automatic detection of embedded GPS from DJI GPS Bluetooth Remote Controller (Action 4/5/6) — no secondary file needed
 - **Non-GoPro Video Support** — Use any video with external GPX/FIT/SRT files for GPS data
 - **Vertical Video Support** — Automatic rotation detection and correct overlay rendering
 - **GPS Quality Analysis** — Automatic signal quality check with warnings before rendering
@@ -148,7 +149,7 @@ Then open http://localhost:8000 in your browser.
 
 | Type | Formats | Description |
 |------|---------|-------------|
-| Video | `.mp4`, `.mov`, `.avi` | Video files (GoPro files may contain embedded GPS) |
+| Video | `.mp4`, `.mov`, `.avi` | Video files (GoPro and DJI Action files may contain embedded GPS) |
 | GPS Data | `.gpx`, `.fit`, `.srt` | External GPS tracks — GPX, FIT, or DJI SRT telemetry (optional) |
 
 ## Configuration
@@ -174,6 +175,7 @@ GPStitch includes runtime patches for `gopro-overlay` that add:
 - **Audio stream copy** — Preserves audio without re-encoding
 - **Metadata preservation** — Keeps original video metadata in output
 - **DJI camera metrics** — Extends overlay engine with ISO, shutter, f-number, EV, color temperature, and focal length from DJI SRT files
+- **DJI Osmo Action GPS** — Loads embedded protobuf GPS telemetry from DJI Action cameras with GPS Bluetooth Remote Controller
 - **Odometer offset** — Allows odometer to start from a custom offset value for shared GPX batch rendering
 
 Patches are applied automatically at startup. To disable:

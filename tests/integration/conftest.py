@@ -66,3 +66,21 @@ def integration_test_dji_srt():
     if not path.exists():
         pytest.skip(f"Integration test DJI SRT not found: {path}")
     return path
+
+
+# Original mtime of DJI Action test video with embedded GPS.
+# Set to match the first GPS timestamp so file-modified alignment works.
+_DJI_ACTION_VIDEO_ORIGINAL_MTIME = datetime(2026, 3, 15, 23, 58, 14, tzinfo=UTC).timestamp()
+
+
+@pytest.fixture(scope="module")
+def integration_test_dji_action_video():
+    """Real DJI Action video with embedded GPS for integration tests."""
+    from tests.fixtures.data import TEST_DJI_ACTION_VIDEO_PATH
+
+    path = Path(TEST_DJI_ACTION_VIDEO_PATH)
+    if not path.exists():
+        pytest.skip(f"Integration test DJI Action video not found: {path}")
+    # Restore original mtime that git clone does not preserve
+    os.utime(path, (_DJI_ACTION_VIDEO_ORIGINAL_MTIME, _DJI_ACTION_VIDEO_ORIGINAL_MTIME))
+    return path

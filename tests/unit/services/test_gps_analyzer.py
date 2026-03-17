@@ -1,10 +1,14 @@
 """Tests for GPS quality analyzer service."""
 
+from pathlib import Path
+from unittest.mock import patch
+
 from gpstitch.models.schemas import GPSQualityReport
 from gpstitch.services.gps_analyzer import (
     _build_report,
     _determine_quality_score,
     _generate_warnings,
+    analyze_gps_quality,
 )
 
 
@@ -259,3 +263,51 @@ class TestGPSQualityReportModel:
 
         assert report.dop_min is None
         assert report.dop_mean is None
+
+
+class TestAnalyzeGpsQualityDjiAction:
+    """Tests for analyze_gps_quality with DJI Action videos."""
+
+    def test_dji_action_video_returns_none(self):
+        """DJI Action video with embedded GPS returns None (no DOP data)."""
+        with patch(
+            "gpstitch.services.dji_meta_parser.detect_dji_meta_stream",
+            return_value=2,
+        ):
+            result = analyze_gps_quality(Path("/fake/dji_action.mp4"))
+            assert result is None
+
+    def test_non_dji_video_does_not_skip(self):
+        """Non-DJI video proceeds to normal GoPro analysis (mocked to fail)."""
+        with (
+            patch(
+                "gpstitch.services.dji_meta_parser.detect_dji_meta_stream",
+                return_value=None,
+            ) as mock_detect,
+            patch(
+                "gopro_overlay.ffmpeg.FFMPEG",
+                side_effect=Exception("no GPMF"),
+            ),
+        ):
+            # When detect_dji_meta_stream returns None, it falls through
+            # to GoPro analysis which fails → returns None from except block
+            result = analyze_gps_quality(Path("/fake/gopro.mp4"))
+            assert result is None
+            mock_detect.assert_called_once()
+
+    def test_dji_meta_detection_failure_falls_through(self):
+        """If detect_dji_meta_stream raises, fall through to normal analysis."""
+        with (
+            patch(
+                "gpstitch.services.dji_meta_parser.detect_dji_meta_stream",
+                side_effect=Exception("ffprobe error"),
+            ),
+            patch(
+                "gopro_overlay.ffmpeg.FFMPEG",
+                side_effect=Exception("no GPMF"),
+            ),
+        ):
+            # Detection failure is caught, falls through to GoPro path
+            # which also fails → returns None
+            result = analyze_gps_quality(Path("/fake/broken.mp4"))
+            assert result is None

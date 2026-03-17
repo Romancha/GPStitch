@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 TS_SRT_SOURCE_ARG = "--ts-srt-source"
 TS_SRT_VIDEO_ARG = "--ts-srt-video"
 TS_ODO_OFFSET_ARG = "--ts-odo-offset"
+TS_DJI_META_SOURCE_ARG = "--ts-dji-meta-source"
 
 
 def find_gopro_dashboard() -> Path | None:
@@ -78,7 +79,7 @@ def _extract_custom_args() -> dict:
     Returns:
         Dict with keys: srt_path, video_path, odo_offset. Values may be None.
     """
-    result = {"srt_path": None, "video_path": None, "odo_offset": None}
+    result = {"srt_path": None, "video_path": None, "odo_offset": None, "dji_meta_source": None}
     new_argv = []
     i = 0
     while i < len(sys.argv):
@@ -95,6 +96,9 @@ def _extract_custom_args() -> dict:
             except ValueError:
                 logger.error("Invalid %s value: %s (expected a number)", TS_ODO_OFFSET_ARG, sys.argv[i + 1])
                 sys.exit(1)
+            i += 2
+        elif arg == TS_DJI_META_SOURCE_ARG and i + 1 < len(sys.argv):
+            result["dji_meta_source"] = sys.argv[i + 1]
             i += 2
         else:
             new_argv.append(arg)
@@ -121,6 +125,13 @@ def main():
 
         patch_gpx_load_for_srt(custom_args["srt_path"], custom_args["video_path"])
         logger.info(f"SRT GPX patch applied: srt={custom_args['srt_path']}, video={custom_args['video_path']}")
+
+    # Patch GPX loading to use DJI meta protobuf directly (preserves full GPS data)
+    if custom_args["dji_meta_source"]:
+        from gpstitch.patches.gpx_patches import patch_dji_meta_load
+
+        patch_dji_meta_load(custom_args["dji_meta_source"])
+        logger.info(f"DJI meta GPX patch applied: source={custom_args['dji_meta_source']}")
 
     # Patch calculate_odo to start from offset (for shared GPX batch render)
     if custom_args["odo_offset"] is not None:

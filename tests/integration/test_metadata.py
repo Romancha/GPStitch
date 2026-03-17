@@ -1,5 +1,7 @@
 """Integration tests for metadata extraction with real gopro-overlay."""
 
+from pathlib import Path
+
 import pytest
 
 
@@ -155,3 +157,58 @@ class TestFileTypeDetection:
 
         # Returns "unknown" for unknown types
         assert file_type == "unknown"
+
+
+@pytest.mark.integration
+class TestDjiActionVideoMetadataExtraction:
+    """Tests for DJI Action video metadata extraction with embedded GPS."""
+
+    @pytest.fixture
+    def dji_action_video(self):
+        """DJI Action test video fixture."""
+        from tests.fixtures.data import TEST_DJI_ACTION_VIDEO_PATH
+
+        path = Path(TEST_DJI_ACTION_VIDEO_PATH)
+        if not path.exists():
+            pytest.skip(f"DJI Action test video not found: {path}")
+        return path
+
+    def test_extract_dji_action_metadata(self, dji_action_video):
+        """Extract metadata from DJI Action video."""
+        from gpstitch.services.metadata import extract_video_metadata
+
+        metadata = extract_video_metadata(dji_action_video)
+
+        assert metadata is not None
+        assert metadata.width > 0
+        assert metadata.height > 0
+        assert metadata.duration_seconds > 0
+
+    def test_dji_action_has_dji_meta_true(self, dji_action_video):
+        """DJI Action video should have has_dji_meta=True."""
+        from gpstitch.services.metadata import extract_video_metadata
+
+        metadata = extract_video_metadata(dji_action_video)
+
+        assert metadata is not None
+        assert metadata.has_dji_meta is True
+
+    def test_dji_action_has_point_count(self, dji_action_video):
+        """DJI Action video should report GPS point count."""
+        from gpstitch.services.metadata import extract_video_metadata
+
+        metadata = extract_video_metadata(dji_action_video)
+
+        assert metadata is not None
+        assert metadata.dji_meta_point_count is not None
+        assert metadata.dji_meta_point_count > 0
+
+    def test_regular_video_has_dji_meta_false(self, integration_test_video):
+        """Regular GoPro video should have has_dji_meta=False."""
+        from gpstitch.services.metadata import extract_video_metadata
+
+        metadata = extract_video_metadata(integration_test_video)
+
+        assert metadata is not None
+        assert metadata.has_dji_meta is False
+        assert metadata.dji_meta_point_count is None

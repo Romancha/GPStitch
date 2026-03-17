@@ -614,3 +614,229 @@ class TestLayoutCommandGeneration:
                 output_file="/tmp/out.mp4",
                 layout="nonexistent-layout-xyz",
             )
+
+
+class TestGenerateCliCommandDjiMeta:
+    """Tests for generate_cli_command with DJI Action embedded GPS (DJI meta stream)."""
+
+    @pytest.fixture
+    def mock_file_manager(self, monkeypatch):
+        from gpstitch.services import file_manager as fm_module
+
+        manager = MagicMock()
+        monkeypatch.setattr(fm_module, "file_manager", manager)
+        return manager
+
+    def _make_file_info(self, file_path, file_type, role, has_dji_meta=False, dji_meta_point_count=None):
+        from gpstitch.models.schemas import FileInfo, VideoMetadata
+
+        video_metadata = None
+        if file_type == "video":
+            video_metadata = VideoMetadata(
+                width=1920,
+                height=1080,
+                duration_seconds=5.0,
+                frame_count=125,
+                frame_rate=25.0,
+                has_gps=False,
+                has_dji_meta=has_dji_meta,
+                dji_meta_point_count=dji_meta_point_count,
+            )
+
+        return FileInfo(
+            filename=file_path.split("/")[-1],
+            file_path=file_path,
+            file_type=file_type,
+            role=role,
+            video_metadata=video_metadata,
+        )
+
+    @patch("gpstitch.services.renderer._convert_dji_meta_to_gpx")
+    def test_dji_meta_video_uses_gpx_only(self, mock_convert, mock_file_manager):
+        """DJI Action video with embedded GPS should use --use-gpx-only with temp GPX."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        mock_convert.return_value = "/tmp/gpstitch_djimeta_test_abc12345.gpx"
+
+        primary = self._make_file_info(
+            "/tmp/DJI_video.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_dji_meta=True,
+            dji_meta_point_count=125,
+        )
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, temp_files = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--use-gpx-only" in cmd
+        assert "--gpx" in cmd
+        assert "gpstitch_djimeta_test_abc12345.gpx" in cmd
+        assert "--video-time-start" in cmd
+        assert "file-modified" in cmd
+        assert "/tmp/gpstitch_djimeta_test_abc12345.gpx" in temp_files
+
+    @patch("gpstitch.services.renderer._convert_dji_meta_to_gpx")
+    def test_dji_meta_video_includes_wrapper_arg(self, mock_convert, mock_file_manager):
+        """DJI Action video should include --ts-dji-meta-source wrapper arg."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        mock_convert.return_value = "/tmp/gpstitch_djimeta_test.gpx"
+
+        primary = self._make_file_info(
+            "/tmp/DJI_video.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_dji_meta=True,
+            dji_meta_point_count=125,
+        )
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--ts-dji-meta-source" in cmd
+        assert "/tmp/DJI_video.MP4" in cmd
+
+    @patch("gpstitch.services.renderer._convert_dji_meta_to_gpx")
+    def test_dji_meta_video_includes_overlay_size(self, mock_convert, mock_file_manager):
+        """DJI Action video should include --overlay-size."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        mock_convert.return_value = "/tmp/gpstitch_djimeta_test.gpx"
+
+        primary = self._make_file_info(
+            "/tmp/DJI_video.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_dji_meta=True,
+            dji_meta_point_count=125,
+        )
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--overlay-size 1920x1080" in cmd
+
+    @patch("gpstitch.services.renderer._convert_dji_meta_to_gpx")
+    def test_dji_meta_video_with_secondary_gpx_uses_secondary(self, mock_convert, mock_file_manager):
+        """DJI Action video with external GPX should use external GPX, not embedded GPS."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = self._make_file_info(
+            "/tmp/DJI_video.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_dji_meta=True,
+            dji_meta_point_count=125,
+        )
+        secondary = self._make_file_info("/tmp/track.gpx", "gpx", FileRole.SECONDARY)
+
+        mock_file_manager.get_files.return_value = [primary, secondary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = secondary
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+            video_time_alignment="file-modified",
+        )
+
+        # Should use Mode 2 (Video + GPX), not Mode 4 (DJI meta)
+        mock_convert.assert_not_called()
+        assert "--gpx" in cmd
+        assert "track.gpx" in cmd
+        assert "--ts-dji-meta-source" not in cmd
+
+    def test_dji_meta_video_no_dji_meta_uses_gopro_mode(self, mock_file_manager):
+        """Video without has_dji_meta should use standard GoPro mode (Mode 1)."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = self._make_file_info(
+            "/tmp/GoPro_video.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_dji_meta=False,
+        )
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        # Should be Mode 1 (GoPro) - no --use-gpx-only, no --ts-dji-meta-source
+        assert "--use-gpx-only" not in cmd
+        assert "--ts-dji-meta-source" not in cmd
+
+
+class TestWrapperArgsStripping:
+    """Tests for stripping wrapper-internal args from user-facing commands."""
+
+    def test_strip_dji_meta_source_arg(self):
+        """--ts-dji-meta-source should be stripped from user-facing command."""
+        from gpstitch.api.command import _RE_WRAPPER_ARGS
+
+        cmd = (
+            "gopro-dashboard.py /tmp/video.mp4 /tmp/out.mp4"
+            " --use-gpx-only --gpx /tmp/temp.gpx"
+            " --ts-dji-meta-source '/tmp/video.mp4'"
+        )
+        result = _RE_WRAPPER_ARGS.sub("", cmd)
+
+        assert "--ts-dji-meta-source" not in result
+        assert "--use-gpx-only" in result
+        assert "--gpx" in result
+
+    def test_strip_dji_meta_source_unquoted(self):
+        """--ts-dji-meta-source with unquoted path should be stripped."""
+        from gpstitch.api.command import _RE_WRAPPER_ARGS
+
+        cmd = "gopro-dashboard.py /tmp/video.mp4 /tmp/out.mp4 --ts-dji-meta-source /tmp/video.mp4"
+        result = _RE_WRAPPER_ARGS.sub("", cmd)
+
+        assert "--ts-dji-meta-source" not in result
+
+    def test_strip_srt_args_still_works(self):
+        """Existing SRT wrapper args should still be stripped."""
+        from gpstitch.api.command import _RE_WRAPPER_ARGS
+
+        cmd = (
+            "gopro-dashboard.py /tmp/video.mp4 /tmp/out.mp4"
+            " --ts-srt-source '/tmp/test.srt'"
+            " --ts-srt-video '/tmp/video.mp4'"
+        )
+        result = _RE_WRAPPER_ARGS.sub("", cmd)
+
+        assert "--ts-srt-source" not in result
+        assert "--ts-srt-video" not in result

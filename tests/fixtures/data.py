@@ -47,6 +47,7 @@ TEST_MOV_VIDEO_PATH = str(Path(__file__).parent / "videos" / "IMG_2927.MOV")
 TEST_RUN_GPX_PATH = str(Path(__file__).parent / "videos" / "hiking_activity.gpx")
 TEST_DJI_VIDEO_PATH = str(Path(__file__).parent / "videos" / "DJI_20250723102139_0001_D.MP4")
 TEST_DJI_SRT_PATH = str(Path(__file__).parent / "videos" / "DJI_20250723102139_0001_D.SRT")
+TEST_DJI_ACTION_VIDEO_PATH = str(Path(__file__).parent / "videos" / "DJI_20260315180109_0003_D_5s_fixture.MP4")
 
 # Allowed extensions for upload
 ALLOWED_VIDEO_EXTENSIONS = [".mp4", ".MP4", ".mov", ".MOV"]

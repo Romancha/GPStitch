@@ -108,6 +108,7 @@ class RenderService:
         For "auto"/"manual": extract creation_time via ffprobe, fallback to st_ctime,
         apply time_offset_seconds for manual mode. Returns Unix timestamp.
         For "file-modified" (SRT legacy): resolve based on secondary file type.
+        For DJI meta: use first GPS timestamp from embedded stream.
         Returns None if no mtime change is needed.
         """
         from gpstitch.services.file_manager import file_manager
@@ -117,6 +118,37 @@ class RenderService:
         # Do NOT override mtime in auto/manual mode when SRT is secondary.
         secondary = file_manager.get_secondary_file(config.session_id)
         is_srt = secondary and secondary.file_type == "srt"
+
+        # DJI meta videos: use the first GPS timestamp for alignment.
+        # This is the most reliable source — ffprobe creation_time may be absent
+        # and file mtime is lost on upload or git clone.
+        primary = file_manager.get_primary_file(config.session_id)
+        if (
+            primary is not None
+            and primary.file_type == "video"
+            and getattr(primary.video_metadata, "has_dji_meta", False) is True
+            and not secondary
+        ):
+            try:
+                from gpstitch.services.dji_meta_parser import parse_dji_meta_file
+
+                points = parse_dji_meta_file(Path(video_path))
+                if points:
+                    first_gps_ts = points[0].timestamp.replace(tzinfo=UTC).timestamp()
+                    # Account for GPS lock delay: if GPS locked after recording
+                    # started, points[0].frame_idx > 0. Subtract the frame offset
+                    # so mtime reflects the actual video start, not the first GPS fix.
+                    frame_idx = points[0].frame_idx
+                    if frame_idx > 0 and primary.video_metadata is not None:
+                        fps = primary.video_metadata.frame_rate
+                        if fps > 0:
+                            first_gps_ts -= frame_idx / fps
+                    # Apply manual time offset (keeps render aligned with preview)
+                    if config.video_time_alignment == "manual" and config.time_offset_seconds:
+                        first_gps_ts += config.time_offset_seconds
+                    return first_gps_ts
+            except Exception:
+                logger.warning("Failed to extract DJI meta GPS timestamp for mtime alignment")
 
         if config.video_time_alignment in ("auto", "manual") and not is_srt:
             from gpstitch.services.renderer import _extract_creation_time
@@ -340,9 +372,16 @@ class RenderService:
 
         primary = file_manager.get_primary_file(config.session_id)
         secondary = file_manager.get_secondary_file(config.session_id)
-        # mtime manipulation is only needed when there's a secondary file (merge mode),
-        # because video-only renders (Mode 1) don't use --video-time-start.
-        needs_mtime = secondary is not None
+        # mtime manipulation is needed when there's a secondary file (merge mode)
+        # or when the primary has DJI meta GPS (uses --video-time-start file-modified).
+        # Video-only renders (Mode 1, GoPro) don't use --video-time-start.
+        has_dji_meta = (
+            primary is not None
+            and primary.file_type == "video"
+            and getattr(primary.video_metadata, "has_dji_meta", False) is True
+            and secondary is None
+        )
+        needs_mtime = secondary is not None or has_dji_meta
         if primary and primary.file_type == "video":
             pillarbox_info = self._needs_pillarbox(primary.file_path, config)
             if pillarbox_info:

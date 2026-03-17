@@ -19,6 +19,12 @@ from tests.fixtures.data import SAMPLE_GPX_CONTENT
 # Value from: DJI_20250723102139_0001_D.MP4 recorded 2025-07-23, mtime = end of recording.
 _DJI_VIDEO_ORIGINAL_MTIME = datetime(2025, 7, 23, 7, 21, 42, tzinfo=UTC).timestamp()
 
+# Original mtime of DJI Action test video with embedded GPS.
+# Set to match the first GPS timestamp in the DJI meta stream so that
+# file-modified alignment creates video dates overlapping with GPS data.
+# GPS timestamps: 2026-03-15 23:58:14 to 23:58:18 (treated as UTC by patch).
+_DJI_ACTION_VIDEO_ORIGINAL_MTIME = datetime(2026, 3, 15, 23, 58, 14, tzinfo=UTC).timestamp()
+
 
 def find_free_port() -> int:
     """Find a free port on localhost."""
@@ -117,10 +123,16 @@ def app_page(page: Page, base_url: str, live_server) -> Page:
 
 @pytest.fixture(scope="session", autouse=True)
 def _restore_dji_fixture_mtime():
-    """Restore original mtime on DJI video fixture lost during git clone."""
+    """Restore original mtime on DJI video fixtures lost during git clone."""
     dji_video = Path(__file__).parent.parent / "fixtures" / "videos" / "DJI_20250723102139_0001_D.MP4"
     if dji_video.exists():
         os.utime(dji_video, (_DJI_VIDEO_ORIGINAL_MTIME, _DJI_VIDEO_ORIGINAL_MTIME))
+
+    dji_action_video = (
+        Path(__file__).parent.parent / "fixtures" / "videos" / "DJI_20260315180109_0003_D_5s_fixture.MP4"
+    )
+    if dji_action_video.exists():
+        os.utime(dji_action_video, (_DJI_ACTION_VIDEO_ORIGINAL_MTIME, _DJI_ACTION_VIDEO_ORIGINAL_MTIME))
 
 
 # =============================================================================

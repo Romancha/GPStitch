@@ -551,6 +551,90 @@ def _thin_timeseries(timeseries, target_hz: int):
     return new_ts
 
 
+def _load_dji_meta_for_preview(file_path: Path, units):
+    """Load GPS timeseries from embedded DJI meta stream for preview rendering.
+
+    Detects DJI meta stream, extracts GPS points, thins to target Hz, and
+    returns a processed Timeseries ready for framemeta conversion.
+
+    Args:
+        file_path: Path to the video file with DJI meta stream
+        units: gopro_overlay units module
+
+    Returns:
+        Timeseries with GPS data and calculated speeds/odometer
+
+    Raises:
+        ValueError: If no DJI meta stream or GPS data found
+    """
+    from gpstitch.services.dji_meta_parser import (
+        parse_dji_meta_file,
+    )
+    from gpstitch.services.srt_parser import calc_sample_rate
+
+    target_hz = DEFAULT_GPS_TARGET_HZ
+
+    points = parse_dji_meta_file(file_path)
+    if not points:
+        raise ValueError(f"No valid GPS data found in DJI meta stream: {file_path}")
+
+    # Estimate source rate from timestamps
+    if len(points) > 1:
+        duration_s = (points[-1].timestamp - points[0].timestamp).total_seconds()
+        if duration_s > 0:
+            source_hz = len(points) / duration_s
+            sample_rate = calc_sample_rate(source_hz, target_hz)
+        else:
+            sample_rate = 1
+    else:
+        sample_rate = 1
+
+    from gpstitch.services.dji_meta_parser import dji_meta_to_timeseries
+
+    timeseries = dji_meta_to_timeseries(points, units, sample_rate)
+    _apply_timeseries_processing(timeseries)
+    return timeseries
+
+
+def _resolve_dji_meta_start_date(file_path: Path, ffmpeg_gopro, video_time_alignment=None, time_offset_seconds=None):
+    """Resolve video start_date from DJI meta GPS timestamps.
+
+    Uses the first GPS point's timestamp, adjusted for any GPS lock delay
+    (frame offset). This keeps preview and render aligned on the same source.
+
+    Returns (start_date, duration) or falls back to _resolve_time_alignment
+    if DJI meta parsing fails.
+    """
+    try:
+        from gpstitch.services.dji_meta_parser import parse_dji_meta_file
+
+        points = parse_dji_meta_file(file_path)
+        if points:
+            recording = ffmpeg_gopro.find_recording(file_path)
+            duration = recording.video.duration
+
+            first_ts = points[0].timestamp
+            # Account for GPS lock delay: subtract frame offset / fps
+            frame_idx = points[0].frame_idx
+            if frame_idx > 0:
+                fps = recording.video.frame_rate()
+                if fps and fps > 0:
+                    first_ts = first_ts - datetime.timedelta(seconds=frame_idx / fps)
+
+            start_date = first_ts
+            if video_time_alignment == "manual" and time_offset_seconds:
+                start_date = start_date + datetime.timedelta(seconds=time_offset_seconds)
+            return start_date, duration
+    except Exception:
+        pass
+
+    # Fallback to standard resolution
+    start_date, duration, _source = _resolve_time_alignment(
+        file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
+    )
+    return start_date, duration
+
+
 def calculate_odo_offset(gpx_path: Path, video_start_time: datetime.datetime) -> float:
     """Calculate the odometer offset for a video within a shared GPX track.
 
@@ -728,7 +812,18 @@ def render_preview(
                     start_date = _align_timezone(start_date, timeseries)
                     framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
                 else:
-                    raise ValueError("Video file does not contain GPS metadata") from e
+                    # Try DJI Action embedded GPS (DJI meta stream)
+                    from gpstitch.services.dji_meta_parser import detect_dji_meta_stream
+
+                    if detect_dji_meta_stream(file_path) is not None:
+                        timeseries = _load_dji_meta_for_preview(file_path, units)
+                        start_date, duration = _resolve_dji_meta_start_date(
+                            file_path, ffmpeg_gopro, video_time_alignment, time_offset_seconds
+                        )
+                        start_date = _align_timezone(start_date, timeseries)
+                        framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
+                    else:
+                        raise ValueError("Video file does not contain GPS metadata") from e
 
         else:
             # Load GPX, FIT, or SRT file
@@ -948,7 +1043,18 @@ def _render_layout_with_data(
                     start_date = _align_timezone(start_date, timeseries)
                     framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
                 else:
-                    raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
+                    # Try DJI Action embedded GPS (DJI meta stream)
+                    from gpstitch.services.dji_meta_parser import detect_dji_meta_stream
+
+                    if detect_dji_meta_stream(file_path) is not None:
+                        timeseries = _load_dji_meta_for_preview(file_path, units)
+                        start_date, duration = _resolve_dji_meta_start_date(
+                            file_path, ffmpeg_gopro, video_time_alignment, time_offset_seconds
+                        )
+                        start_date = _align_timezone(start_date, timeseries)
+                        framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
+                    else:
+                        raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
         else:
             timeseries = _load_external_timeseries(file_path, units)
             _apply_timeseries_processing(timeseries)
@@ -1034,6 +1140,34 @@ def _convert_srt_to_gpx(srt_path: Path, tz_offset: timedelta | None = None) -> s
 
     gpx_output = Path(tempfile.gettempdir()) / f"gpstitch_srt_{srt_path.stem}_{uuid.uuid4().hex[:8]}.gpx"
     srt_to_gpx_file(srt_path, gpx_output, sample_rate, tz_offset=tz_offset, points=points)
+    return str(gpx_output)
+
+
+def _convert_dji_meta_to_gpx(video_path: Path) -> str:
+    """Convert DJI meta GPS stream to GPX for CLI compatibility.
+
+    Uses a unique temp file path to avoid race conditions in concurrent renders.
+
+    Returns:
+        Path string to the generated GPX file
+    """
+    import uuid
+
+    from gpstitch.services.dji_meta_parser import (
+        dji_meta_to_gpx_file,
+        parse_dji_meta_file,
+    )
+    from gpstitch.services.srt_parser import calc_sample_rate
+
+    points = parse_dji_meta_file(video_path)
+    # DJI Action typically records at 25fps; thin to ~1Hz
+    source_hz = (
+        len(points) / max((points[-1].timestamp - points[0].timestamp).total_seconds(), 1) if len(points) > 1 else 25.0
+    )
+    sample_rate = calc_sample_rate(source_hz, DEFAULT_GPS_TARGET_HZ)
+
+    gpx_output = Path(tempfile.gettempdir()) / f"gpstitch_djimeta_{video_path.stem}_{uuid.uuid4().hex[:8]}.gpx"
+    dji_meta_to_gpx_file(video_path, gpx_output, sample_rate, points=points)
     return str(gpx_output)
 
 
@@ -1203,6 +1337,23 @@ def generate_cli_command(
         ]
         if cli_time_alignment:
             cmd_parts.append(f"--video-time-start {shlex.quote(cli_time_alignment)}")
+    elif primary_type == "video" and getattr(primary.video_metadata, "has_dji_meta", False) is True and not secondary:
+        # Mode 4: DJI Action video with embedded GPS (DJI meta stream)
+        # Extract GPS → convert to GPX temp file → use --use-gpx-only
+        dji_meta_gpx_path = _convert_dji_meta_to_gpx(Path(primary_path))
+        temp_files.append(dji_meta_gpx_path)
+        logger.info(f"Converted DJI meta GPS to GPX: {dji_meta_gpx_path}")
+
+        cmd_parts = [
+            "gopro-dashboard.py",
+            shlex.quote(primary_path),
+            shlex.quote(output_file),
+            "--use-gpx-only",
+            f"--gpx {shlex.quote(dji_meta_gpx_path)}",
+            f"--video-time-start {shlex.quote('file-modified')}",
+        ]
+        if canvas_width and canvas_height:
+            cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
     else:
         # Mode 1: Video only (default - GoPro with embedded GPS)
         # Note: --video-time-start is not valid without --use-gpx-only
@@ -1270,6 +1421,13 @@ def generate_cli_command(
     elif primary_type == "srt":
         # No --ts-srt-video: SRT-only mode has no video for tz-offset estimation
         cmd_parts.append(f"--ts-srt-source {shlex.quote(primary_path)}")
+
+    # Pass DJI meta source path to wrapper for protobuf GPS loading.
+    # The wrapper strips this arg before running gopro-dashboard.py.
+    if getattr(primary.video_metadata, "has_dji_meta", False) is True and not secondary:
+        from gpstitch.scripts.gopro_dashboard_wrapper import TS_DJI_META_SOURCE_ARG
+
+        cmd_parts.append(f"{TS_DJI_META_SOURCE_ARG} {shlex.quote(primary_path)}")
 
     # Pass odo offset for shared GPX batch render.
     # The wrapper strips this arg and patches calculate_odo() to start from offset.

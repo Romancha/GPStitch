@@ -31,6 +31,8 @@ class VideoMetadata(BaseModel):
     frame_count: int
     frame_rate: float
     has_gps: bool
+    has_dji_meta: bool = False
+    dji_meta_point_count: int | None = None
 
 
 class GpxFitMetadata(BaseModel):

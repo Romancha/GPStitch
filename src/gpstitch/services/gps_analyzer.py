@@ -25,14 +25,29 @@ NO_SIGNAL_DOP = 99.0
 
 
 def analyze_gps_quality(file_path: Path) -> GPSQualityReport | None:
-    """Analyze GPS quality from a GoPro video file.
+    """Analyze GPS quality from a video file.
+
+    For GoPro videos with GPMF data, performs full DOP-based quality analysis.
+    For DJI Action videos with embedded DJI meta GPS, returns None since DJI meta
+    has no DOP data and quality analysis would be meaningless (same as SRT).
 
     Args:
         file_path: Path to the video file
 
     Returns:
-        GPSQualityReport with quality analysis, or None if analysis fails
+        GPSQualityReport with quality analysis, or None if analysis fails/not applicable
     """
+    from gpstitch.services.dji_meta_parser import detect_dji_meta_stream
+
+    # DJI Action videos with embedded GPS have no DOP data —
+    # quality analysis is meaningless, same as SRT files
+    try:
+        if detect_dji_meta_stream(file_path) is not None:
+            logger.debug(f"Skipping GPS quality analysis for DJI Action video: {file_path}")
+            return None
+    except Exception:
+        pass
+
     from gopro_overlay.ffmpeg import FFMPEG
     from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
     from gopro_overlay.gpmd_filters import standard as gps_filter_standard
@@ -84,10 +99,7 @@ def analyze_gps_quality(file_path: Path) -> GPSQualityReport | None:
             warnings=["Video file does not contain GPS metadata"],
         )
     except Exception as e:
-        logger.error(f"Error analyzing GPS quality: {e}")
-        import traceback
-
-        traceback.print_exc()
+        logger.error(f"Error analyzing GPS quality: {e}", exc_info=True)
         return None
 
 

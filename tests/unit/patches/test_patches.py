@@ -338,6 +338,80 @@ class TestExtractCustomArgs:
         assert result["video_path"] == "/v.mp4"
         assert sys.argv == ["script", "--gpx", "t.gpx"]
 
+    def test_extracts_dji_meta_source(self, monkeypatch):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["script", "--gpx", "t.gpx", "--ts-dji-meta-source", "/path/to/dji_video.mp4", "--use-gpx-only"],
+        )
+        result = _extract_custom_args()
+        assert result["dji_meta_source"] == "/path/to/dji_video.mp4"
+        assert result["srt_path"] is None
+        assert sys.argv == ["script", "--gpx", "t.gpx", "--use-gpx-only"]
+
+    def test_extracts_dji_meta_with_other_args(self, monkeypatch):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "script",
+                "--ts-srt-source",
+                "/srt.srt",
+                "--ts-dji-meta-source",
+                "/dji.mp4",
+                "--gpx",
+                "t.gpx",
+            ],
+        )
+        result = _extract_custom_args()
+        assert result["srt_path"] == "/srt.srt"
+        assert result["dji_meta_source"] == "/dji.mp4"
+        assert sys.argv == ["script", "--gpx", "t.gpx"]
+
+
+class TestWrapperArgStripping:
+    """Test that _RE_WRAPPER_ARGS strips DJI meta args from user-facing commands."""
+
+    def test_strips_dji_meta_source_arg(self):
+        from gpstitch.api.command import _RE_WRAPPER_ARGS
+
+        cmd = "gopro-dashboard.py video.mp4 output.mp4 --use-gpx-only --gpx /tmp/meta.gpx --ts-dji-meta-source /path/to/dji.mp4"
+        cleaned = _RE_WRAPPER_ARGS.sub("", cmd)
+        assert "--ts-dji-meta-source" not in cleaned
+        assert "/path/to/dji.mp4" not in cleaned
+        assert "--use-gpx-only" in cleaned
+        assert "--gpx" in cleaned
+
+    def test_strips_quoted_dji_meta_source_arg(self):
+        from gpstitch.api.command import _RE_WRAPPER_ARGS
+
+        cmd = "gopro-dashboard.py video.mp4 output.mp4 --ts-dji-meta-source '/path with spaces/dji.mp4'"
+        cleaned = _RE_WRAPPER_ARGS.sub("", cmd)
+        assert "--ts-dji-meta-source" not in cleaned
+        assert "/path with spaces/dji.mp4" not in cleaned
+
+    def test_strips_all_wrapper_args_together(self):
+        from gpstitch.api.command import _RE_WRAPPER_ARGS
+
+        cmd = (
+            "gopro-dashboard.py video.mp4 output.mp4 --use-gpx-only --gpx /tmp/t.gpx"
+            " --ts-srt-source /path/to/file.srt --ts-srt-video /path/to/video.mp4"
+            " --ts-dji-meta-source /path/to/dji.mp4"
+        )
+        cleaned = _RE_WRAPPER_ARGS.sub("", cmd)
+        assert "--ts-srt-source" not in cleaned
+        assert "--ts-srt-video" not in cleaned
+        assert "--ts-dji-meta-source" not in cleaned
+        assert "--use-gpx-only" in cleaned
+
 
 class TestConfigIntegration:
     """Test configuration integration for patches."""
