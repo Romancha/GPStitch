@@ -30,7 +30,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Wrapper-internal arg names consumed by this script (not passed to gopro-dashboard.py).
-# Shared with command.py which strips them from user-facing command strings.
+# Also used by renderer.py generate_cli_command() as part of the gpstitch-dashboard CLI interface.
 TS_SRT_SOURCE_ARG = "--ts-srt-source"
 TS_SRT_VIDEO_ARG = "--ts-srt-video"
 TS_ODO_OFFSET_ARG = "--ts-odo-offset"

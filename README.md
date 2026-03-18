@@ -82,6 +82,18 @@ Render telemetry overlays with a transparent background — without any source v
    - **VP8** — Alpha channel support, widest browser compatibility
 4. Render — the output is a video with a transparent background ready for compositing
 
+## Command-Line Rendering
+
+GPStitch includes `gpstitch-dashboard`, a CLI command that works as a drop-in replacement for `gopro-dashboard.py` with all GPStitch patches applied (DJI support, timecode preservation, audio copy, etc.).
+
+Use the "Get Command" button in the UI to generate a ready-to-run `gpstitch-dashboard` command, then paste it into your terminal:
+
+```bash
+gpstitch-dashboard video.mp4 output.mp4 --layout xml --layout-xml layout.xml
+```
+
+This is useful for scripting, batch processing, or re-running renders without the UI.
+
 ## Requirements
 
 - Python 3.14+

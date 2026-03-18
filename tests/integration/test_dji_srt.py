@@ -301,7 +301,7 @@ class TestDjiSrtCliCommand:
             video_time_alignment="file-modified",
         )
 
-        assert "gopro-dashboard.py" in cmd
+        assert "gpstitch-dashboard" in cmd
         # SRT should be converted to GPX — command should reference .gpx not .srt
         assert "--gpx" in cmd
         assert ".gpx" in cmd
@@ -334,7 +334,7 @@ class TestDjiSrtCliCommand:
             layout="default-1920x1080",
         )
 
-        assert "gopro-dashboard.py" in cmd
+        assert "gpstitch-dashboard" in cmd
         assert "--use-gpx-only" in cmd
         assert "--gpx" in cmd
         assert ".gpx" in cmd

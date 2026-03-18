@@ -36,7 +36,7 @@ class TestCommandGeneration:
         data = response.json()
         assert "command" in data
         assert "input_file" in data
-        assert "gopro-dashboard.py" in data["command"]
+        assert "gpstitch-dashboard" in data["command"]
         assert str(api_test_video) in data["input_file"]
 
     async def test_generate_command_with_units(self, async_client, api_test_video):

@@ -29,6 +29,12 @@ from gpstitch.constants import (
     UNIT_OPTIONS,
     is_pycairo_available,
 )
+from gpstitch.scripts.gopro_dashboard_wrapper import (
+    TS_DJI_META_SOURCE_ARG,
+    TS_ODO_OFFSET_ARG,
+    TS_SRT_SOURCE_ARG,
+    TS_SRT_VIDEO_ARG,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1294,7 +1300,7 @@ def generate_cli_command(
             else:
                 time_arg = f"--video-time-start {shlex.quote(cli_time_alignment)}"
             cmd_parts = [
-                "gopro-dashboard.py",
+                "gpstitch-dashboard",
                 shlex.quote(primary_path),
                 shlex.quote(output_file),
                 "--use-gpx-only",
@@ -1303,7 +1309,7 @@ def generate_cli_command(
             ]
         else:
             cmd_parts = [
-                "gopro-dashboard.py",
+                "gpstitch-dashboard",
                 shlex.quote(primary_path),
                 shlex.quote(output_file),
                 f"--gpx {shlex.quote(secondary_path)}",
@@ -1329,7 +1335,7 @@ def generate_cli_command(
             temp_files.append(gpx_primary_path)
 
         cmd_parts = [
-            "gopro-dashboard.py",
+            "gpstitch-dashboard",
             shlex.quote(output_file),
             "--use-gpx-only",
             f"--gpx {shlex.quote(gpx_primary_path)}",
@@ -1345,7 +1351,7 @@ def generate_cli_command(
         logger.info(f"Converted DJI meta GPS to GPX: {dji_meta_gpx_path}")
 
         cmd_parts = [
-            "gopro-dashboard.py",
+            "gpstitch-dashboard",
             shlex.quote(primary_path),
             shlex.quote(output_file),
             "--use-gpx-only",
@@ -1358,7 +1364,7 @@ def generate_cli_command(
         # Mode 1: Video only (default - GoPro with embedded GPS)
         # Note: --video-time-start is not valid without --use-gpx-only
         cmd_parts = [
-            "gopro-dashboard.py",
+            "gpstitch-dashboard",
             shlex.quote(primary_path),
             shlex.quote(output_file),
         ]
@@ -1414,24 +1420,20 @@ def generate_cli_command(
         cmd_parts.append(f"--gps-speed-max {gps_speed_max}")
 
     # Pass original SRT path to wrapper for camera metrics preservation.
-    # The wrapper strips these args before running gopro-dashboard.py.
     if secondary and secondary.file_type == "srt":
-        cmd_parts.append(f"--ts-srt-source {shlex.quote(secondary.file_path)}")
-        cmd_parts.append(f"--ts-srt-video {shlex.quote(primary_path)}")
+        cmd_parts.append(f"{TS_SRT_SOURCE_ARG} {shlex.quote(secondary.file_path)}")
+        cmd_parts.append(f"{TS_SRT_VIDEO_ARG} {shlex.quote(primary_path)}")
     elif primary_type == "srt":
         # No --ts-srt-video: SRT-only mode has no video for tz-offset estimation
-        cmd_parts.append(f"--ts-srt-source {shlex.quote(primary_path)}")
+        cmd_parts.append(f"{TS_SRT_SOURCE_ARG} {shlex.quote(primary_path)}")
 
     # Pass DJI meta source path to wrapper for protobuf GPS loading.
-    # The wrapper strips this arg before running gopro-dashboard.py.
     if getattr(primary.video_metadata, "has_dji_meta", False) is True and not secondary:
-        from gpstitch.scripts.gopro_dashboard_wrapper import TS_DJI_META_SOURCE_ARG
-
         cmd_parts.append(f"{TS_DJI_META_SOURCE_ARG} {shlex.quote(primary_path)}")
 
     # Pass odo offset for shared GPX batch render.
     # The wrapper strips this arg and patches calculate_odo() to start from offset.
     if odo_offset is not None:
-        cmd_parts.append(f"--ts-odo-offset {odo_offset:.3f}")
+        cmd_parts.append(f"{TS_ODO_OFFSET_ARG} {odo_offset:.3f}")
 
     return " ".join(cmd_parts), temp_files

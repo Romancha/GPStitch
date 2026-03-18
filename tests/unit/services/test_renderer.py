@@ -109,6 +109,71 @@ class TestGenerateCliCommand:
             role=role,
         )
 
+    def test_command_starts_with_gpstitch_dashboard(self, mock_file_manager):
+        """Generated command should start with gpstitch-dashboard, not gopro-dashboard.py."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert cmd.startswith("gpstitch-dashboard ")
+        assert "gopro-dashboard.py" not in cmd
+
+    def test_command_with_gpx_starts_with_gpstitch_dashboard(self, mock_file_manager):
+        """Video + GPX command should also start with gpstitch-dashboard."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
+        secondary = self._make_file_info("/tmp/track.gpx", "gpx", FileRole.SECONDARY)
+
+        mock_file_manager.get_files.return_value = [primary, secondary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = secondary
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-3840x2160",
+            video_time_alignment="file-modified",
+        )
+
+        assert cmd.startswith("gpstitch-dashboard ")
+        assert "gopro-dashboard.py" not in cmd
+
+    @patch("gpstitch.services.renderer._convert_srt_to_gpx", return_value="/tmp/converted.gpx")
+    @patch("gpstitch.services.srt_parser.estimate_tz_offset", return_value=(0, "start"))
+    def test_wrapper_args_present_when_srt_secondary(self, _mock_tz, _mock_convert, mock_file_manager):
+        """Wrapper args --ts-srt-source and --ts-srt-video should be present in generated command."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = self._make_file_info("/tmp/video.mov", "video", FileRole.PRIMARY)
+        secondary = self._make_file_info("/tmp/telemetry.srt", "srt", FileRole.SECONDARY)
+
+        mock_file_manager.get_files.return_value = [primary, secondary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = secondary
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--ts-srt-source" in cmd
+        assert "--ts-srt-video" in cmd
+
     def test_video_gpx_with_time_alignment_uses_gpx_only(self, mock_file_manager):
         """Video + GPX with time alignment should use --use-gpx-only, not --gpx-merge."""
         from gpstitch.models.schemas import FileRole
@@ -800,43 +865,110 @@ class TestGenerateCliCommandDjiMeta:
         assert "--ts-dji-meta-source" not in cmd
 
 
-class TestWrapperArgsStripping:
-    """Tests for stripping wrapper-internal args from user-facing commands."""
+class TestWrapperArgsPreservedInCommandEndpoint:
+    """Tests that command endpoint preserves wrapper args (not stripped).
 
-    def test_strip_dji_meta_source_arg(self):
-        """--ts-dji-meta-source should be stripped from user-facing command."""
-        from gpstitch.api.command import _RE_WRAPPER_ARGS
+    Since gpstitch-dashboard is now the entry point, wrapper args like --ts-srt-source,
+    --ts-srt-video, and --ts-dji-meta-source are valid CLI args and must not be removed.
+    """
 
-        cmd = (
-            "gopro-dashboard.py /tmp/video.mp4 /tmp/out.mp4"
-            " --use-gpx-only --gpx /tmp/temp.gpx"
-            " --ts-dji-meta-source '/tmp/video.mp4'"
+    @pytest.fixture
+    def mock_deps(self, monkeypatch):
+        """Mock file_manager for command endpoint tests."""
+        import gpstitch.api.command as cmd_module
+
+        manager = MagicMock()
+        monkeypatch.setattr(cmd_module, "file_manager", manager)
+        manager.session_exists.return_value = True
+
+        from gpstitch.models.schemas import FileInfo, FileRole
+
+        primary = FileInfo(
+            filename="video.mov",
+            file_path="/tmp/video.mov",
+            file_type="video",
+            role=FileRole.PRIMARY,
         )
-        result = _RE_WRAPPER_ARGS.sub("", cmd)
+        manager.get_primary_file.return_value = primary
+        return manager
 
-        assert "--ts-dji-meta-source" not in result
-        assert "--use-gpx-only" in result
-        assert "--gpx" in result
-
-    def test_strip_dji_meta_source_unquoted(self):
-        """--ts-dji-meta-source with unquoted path should be stripped."""
-        from gpstitch.api.command import _RE_WRAPPER_ARGS
-
-        cmd = "gopro-dashboard.py /tmp/video.mp4 /tmp/out.mp4 --ts-dji-meta-source /tmp/video.mp4"
-        result = _RE_WRAPPER_ARGS.sub("", cmd)
-
-        assert "--ts-dji-meta-source" not in result
-
-    def test_strip_srt_args_still_works(self):
-        """Existing SRT wrapper args should still be stripped."""
-        from gpstitch.api.command import _RE_WRAPPER_ARGS
-
-        cmd = (
-            "gopro-dashboard.py /tmp/video.mp4 /tmp/out.mp4"
-            " --ts-srt-source '/tmp/test.srt'"
-            " --ts-srt-video '/tmp/video.mp4'"
+    def test_srt_wrapper_args_preserved(self, mock_deps):
+        """Command endpoint should preserve --ts-srt-source and --ts-srt-video in output."""
+        cmd_with_wrapper_args = (
+            "gpstitch-dashboard '/tmp/video.mov' '/tmp/output.mp4'"
+            " --ts-srt-source '/tmp/telemetry.srt'"
+            " --ts-srt-video '/tmp/video.mov'"
+            " --layout default --overlay-size 1920x1080"
         )
-        result = _RE_WRAPPER_ARGS.sub("", cmd)
 
-        assert "--ts-srt-source" not in result
-        assert "--ts-srt-video" not in result
+        with patch(
+            "gpstitch.api.command.generate_cli_command",
+            return_value=(cmd_with_wrapper_args, []),
+        ):
+            import asyncio
+
+            from gpstitch.api.command import generate_command
+            from gpstitch.models.schemas import CommandRequest
+
+            request = CommandRequest(
+                session_id="test-session",
+                layout="default-1920x1080",
+                output_filename="/tmp/output.mp4",
+            )
+            response = asyncio.run(generate_command(request))
+
+        assert "--ts-srt-source" in response.command
+        assert "--ts-srt-video" in response.command
+
+    def test_dji_meta_wrapper_arg_preserved(self, mock_deps):
+        """Command endpoint should preserve --ts-dji-meta-source in output."""
+        cmd_with_wrapper_args = (
+            "gpstitch-dashboard '/tmp/DJI_video.MP4' '/tmp/output.mp4'"
+            " --ts-dji-meta-source '/tmp/DJI_video.MP4'"
+            " --use-gpx-only --gpx '/tmp/temp.gpx'"
+        )
+
+        with patch(
+            "gpstitch.api.command.generate_cli_command",
+            return_value=(cmd_with_wrapper_args, []),
+        ):
+            import asyncio
+
+            from gpstitch.api.command import generate_command
+            from gpstitch.models.schemas import CommandRequest
+
+            request = CommandRequest(
+                session_id="test-session",
+                layout="default-1920x1080",
+                output_filename="/tmp/output.mp4",
+            )
+            response = asyncio.run(generate_command(request))
+
+        assert "--ts-dji-meta-source" in response.command
+
+    def test_command_passed_through_unchanged(self, mock_deps):
+        """Command endpoint should pass generate_cli_command output through without modification."""
+        original_cmd = (
+            "gpstitch-dashboard '/tmp/video.mov' '/tmp/output.mp4'"
+            " --ts-srt-source '/tmp/t.srt' --ts-srt-video '/tmp/video.mov'"
+            " --ts-dji-meta-source '/tmp/video.mov'"
+            " --layout default --overlay-size 1920x1080"
+        )
+
+        with patch(
+            "gpstitch.api.command.generate_cli_command",
+            return_value=(original_cmd, []),
+        ):
+            import asyncio
+
+            from gpstitch.api.command import generate_command
+            from gpstitch.models.schemas import CommandRequest
+
+            request = CommandRequest(
+                session_id="test-session",
+                layout="default-1920x1080",
+                output_filename="/tmp/output.mp4",
+            )
+            response = asyncio.run(generate_command(request))
+
+        assert response.command == original_cmd

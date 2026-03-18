@@ -1,24 +1,10 @@
 """Command generation API endpoint."""
 
-import re
-
 from fastapi import APIRouter, HTTPException
 
 from gpstitch.models.schemas import CommandRequest, CommandResponse
-from gpstitch.scripts.gopro_dashboard_wrapper import (
-    TS_DJI_META_SOURCE_ARG,
-    TS_SRT_SOURCE_ARG,
-    TS_SRT_VIDEO_ARG,
-)
 from gpstitch.services.file_manager import file_manager
 from gpstitch.services.renderer import generate_cli_command
-
-# Pattern to strip wrapper-internal args from user-facing commands.
-# Handles both plain paths (\S+) and shell-quoted paths ('...').
-_wrapper_arg_names = (
-    re.escape(TS_SRT_SOURCE_ARG) + "|" + re.escape(TS_SRT_VIDEO_ARG) + "|" + re.escape(TS_DJI_META_SOURCE_ARG)
-)
-_RE_WRAPPER_ARGS = re.compile(rf"\s+(?:{_wrapper_arg_names})\s+(?:'[^']*'|\S+)")
 
 router = APIRouter()
 
@@ -58,11 +44,7 @@ async def generate_command(request: CommandRequest) -> CommandResponse:
         ffmpeg_profile=request.ffmpeg_profile,
     )
 
-    # Strip wrapper-internal args (--ts-srt-source/--ts-srt-video) from
-    # user-facing command — these are only understood by the wrapper subprocess.
-    user_command = _RE_WRAPPER_ARGS.sub("", command)
-
     return CommandResponse(
-        command=user_command,
+        command=command,
         input_file=primary_file.file_path,
     )

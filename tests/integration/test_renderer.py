@@ -450,7 +450,7 @@ class TestRendererCLICommand:
             layout="default-1920x1080",
         )
 
-        assert "gopro-dashboard.py" in cmd
+        assert "gpstitch-dashboard" in cmd
         assert str(integration_test_video) in cmd
         assert "--layout" in cmd
         assert "/tmp/output.mp4" in cmd

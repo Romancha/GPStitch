@@ -186,7 +186,7 @@ class TestDjiMetaFullRender:
         )
 
         # Verify command has all required parts
-        assert "gopro-dashboard.py" in cmd
+        assert "gpstitch-dashboard" in cmd
         assert "--use-gpx-only" in cmd
         assert "--gpx" in cmd
         assert "--ts-dji-meta-source" in cmd

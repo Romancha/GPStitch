@@ -47,6 +47,7 @@ dev = [
 
 [project.scripts]
 gpstitch = "gpstitch.main:main"
+gpstitch-dashboard = "gpstitch.scripts.gopro_dashboard_wrapper:main"
 
 [project.urls]
 Homepage = "https://github.com/Romancha/GPStitch"
