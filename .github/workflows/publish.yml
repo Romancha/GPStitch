@@ -5,43 +5,11 @@ on:
     types: [published]
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Lint
-        run: uv run ruff check src tests
-
-      - name: Check formatting
-        run: uv run ruff format --check src tests
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-
-      - uses: FedericoCarboni/setup-ffmpeg@v3
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev
-
-      - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Run tests
-        run: uv run pytest -m "not e2e" --tb=short
+  ci:
+    uses: ./.github/workflows/ci.yml
 
   publish:
-    needs: [lint, test]
+    needs: [ci]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
