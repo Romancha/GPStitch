@@ -3,7 +3,7 @@
 [![PyPI](https://img.shields.io/pypi/v/gpstitch)](https://pypi.org/project/gpstitch/)
 [![Downloads](https://img.shields.io/pypi/dm/gpstitch)](https://pypi.org/project/gpstitch/)
 [![GitHub release](https://img.shields.io/github/v/release/Romancha/GPStitch)](https://github.com/Romancha/GPStitch/releases)
-[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
@@ -96,7 +96,7 @@ This is useful for scripting, batch processing, or re-running renders without th
 
 ## Requirements
 
-- Python 3.14+
+- Python 3.12+
 - FFmpeg (must be installed and available in PATH)
 - [gopro-overlay](https://pypi.org/project/gopro-overlay/) (installed automatically)
 

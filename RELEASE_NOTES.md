@@ -1,5 +1,17 @@
 # Release Notes
 
+## Version 0.12.1 — 21 Mar 2026
+
+### 🆕 New
+
+- **`gpstitch-dashboard` CLI command** — Standalone entry point that works as a drop-in replacement for `gopro-dashboard.py` with all GPStitch patches applied (DJI support, timecode preservation, audio copy, etc.). Use the "Get Command" button in the UI to generate a ready-to-run command ([#5](https://github.com/Romancha/GPStitch/issues/5))
+
+### 🐞 Fixes
+
+- Fixed README showing Python 3.14+ requirement instead of 3.12+ ([#4](https://github.com/Romancha/GPStitch/issues/4))
+
+---
+
 ## Version 0.12.0 — 17 Mar 2026
 
 ### 🎉 Major Features

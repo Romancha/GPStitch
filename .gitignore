@@ -91,4 +91,4 @@ temp/
 tests/fixtures/videos/large
 
 # ralphex progress logs
-.ralphex/progress/
+.ralphex/

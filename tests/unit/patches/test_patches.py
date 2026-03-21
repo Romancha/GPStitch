@@ -377,7 +377,6 @@ class TestExtractCustomArgs:
         assert sys.argv == ["script", "--gpx", "t.gpx"]
 
 
-
 class TestConfigIntegration:
     """Test configuration integration for patches."""
 
