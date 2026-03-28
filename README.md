@@ -164,6 +164,33 @@ Then open http://localhost:8000 in your browser.
 | Video | `.mp4`, `.mov`, `.avi` | Video files (GoPro and DJI Action files may contain embedded GPS) |
 | GPS Data | `.gpx`, `.fit`, `.srt` | External GPS tracks — GPX, FIT, or DJI SRT telemetry (optional) |
 
+## Time Sync
+
+When using a non-GoPro video with an external GPS file (GPX/FIT), the video and GPS track need to be aligned in time. GPStitch provides three synchronization modes in the **Time Sync** dropdown:
+
+### Auto (Recommended)
+
+Automatically aligns the video to the GPS track using the video's embedded `creation_time` metadata (set by the camera when recording starts). GPStitch extracts this timestamp via ffprobe and cross-validates it against the GPS track's time range.
+
+**Timezone auto-detection:** Some cameras (e.g., Insta360, certain DJI models) incorrectly write local time into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking whether the video time window overlaps with the GPS data — if it doesn't, it automatically tries alternative timestamps (`file created` date) and selects the one that best matches the GPS track.
+
+If no valid `creation_time` is found in the video metadata, GPStitch falls back to the file's creation date (less reliable, shown as a warning in the UI).
+
+### Use GPX Timestamps
+
+Skips time alignment entirely. The GPS data is used as-is without synchronization with the video. This mode is useful when:
+
+- The GPX file has been manually trimmed to exactly match the video segment
+- You want the overlay to display the full GPS track regardless of video timing
+
+### Manual Offset
+
+Works the same as **Auto** (uses video metadata for alignment), but allows you to apply a manual correction in seconds (`+` or `-`). Use this when the automatic alignment is close but slightly off — for example, if the camera's clock was not perfectly synchronized with GPS time.
+
+The UI shows the base timestamp and the adjusted result so you can see exactly how the offset is applied.
+
+> **Note:** For DJI drones with SRT files, time synchronization is handled automatically — the Time Sync options are not shown because GPStitch detects the correct alignment from the SRT telemetry data.
+
 ## Configuration
 
 Environment variables (prefix: `GPSTITCH_`):
