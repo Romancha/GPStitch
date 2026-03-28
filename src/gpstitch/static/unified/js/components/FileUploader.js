@@ -211,9 +211,10 @@ class FileUploader {
             let response;
 
             if (type === 'video') {
-                // If session has GPX/FIT/SRT as primary, send session_id to reuse session
+                // Send session_id to reuse session when GPS is loaded (as primary or secondary)
                 const body = { file_path: path };
-                if (hasGpsPrimary && this.state.sessionId) {
+                const hasSecondary = !!this.state.getSecondaryFile();
+                if (this.state.sessionId && (hasGpsPrimary || (hasVideo && hasSecondary))) {
                     body.session_id = this.state.sessionId;
                 }
                 response = await fetch('/api/local-file', {
@@ -250,12 +251,14 @@ class FileUploader {
 
             const data = await response.json();
 
-            if (type === 'video' && hasGpsPrimary && this.state.sessionId) {
-                // Session reused — update files without resetting session
-                this.state.setFiles(data.files);
-            } else if (type === 'video' || !hasVideo) {
+            if (type === 'video') {
+                // Video loaded (new or replaced) — always use setSession to update duration/timeline
+                this.state.setSession(data.session_id, data);
+            } else if (!hasVideo) {
+                // GPS loaded as primary (no video) — new session
                 this.state.setSession(data.session_id, data);
             } else {
+                // GPS added as secondary to existing video
                 this.state.setFiles(data.files);
             }
 
@@ -289,8 +292,9 @@ class FileUploader {
             let response;
 
             if (type === 'video') {
-                // If session has GPX/FIT as primary, send session_id to reuse session
-                if (hasGpsPrimary && this.state.sessionId) {
+                // Send session_id to reuse session when GPS is loaded (as primary or secondary)
+                const hasSecondary = !!this.state.getSecondaryFile();
+                if (this.state.sessionId && (hasGpsPrimary || (hasVideo && hasSecondary))) {
                     formData.append('session_id', this.state.sessionId);
                 }
                 response = await fetch('/api/upload', {
@@ -319,12 +323,14 @@ class FileUploader {
 
             const data = await response.json();
 
-            if (type === 'video' && hasGpsPrimary && this.state.sessionId) {
-                // Session reused — update files without resetting session
-                this.state.setFiles(data.files);
-            } else if (type === 'video' || !hasVideo) {
+            if (type === 'video') {
+                // Video loaded (new or replaced) — always use setSession to update duration/timeline
+                this.state.setSession(data.session_id, data);
+            } else if (!hasVideo) {
+                // GPS loaded as primary (no video) — new session
                 this.state.setSession(data.session_id, data);
             } else {
+                // GPS added as secondary to existing video
                 this.state.setFiles(data.files);
             }
 
@@ -339,8 +345,25 @@ class FileUploader {
         const secondary = this.state.getSecondaryFile();
 
         if (type === 'video') {
-            if (primary?.file_type === 'video') {
-                // Clear entire session if video is primary
+            if (primary?.file_type === 'video' && secondary) {
+                // Video has secondary GPS - remove video only, promote GPS to primary
+                try {
+                    const response = await fetch(`/api/session/${this.state.sessionId}/primary`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.state.setFiles(data.files);
+                    } else {
+                        const error = await response.json().catch(() => ({}));
+                        console.error('Failed to remove video file:', error);
+                        alert(error.detail || 'Failed to remove video file');
+                    }
+                } catch (error) {
+                    console.error('Failed to remove video file:', error);
+                }
+            } else if (primary?.file_type === 'video') {
+                // Video only, no GPS - clear entire session
                 this.state.clearSession();
             }
         } else {

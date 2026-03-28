@@ -56,6 +56,10 @@ class Timeline {
             this.show();
         });
 
+        this.state.on('timeline:changed', ({ duration }) => {
+            this.setDuration(duration);
+        });
+
         this.state.on('session:cleared', () => {
             this.hide();
         });
