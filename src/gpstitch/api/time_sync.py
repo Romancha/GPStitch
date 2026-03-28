@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from gpstitch.models.schemas import FileRole
 from gpstitch.services.file_manager import file_manager
-from gpstitch.services.renderer import _align_timezone, _extract_creation_time
+from gpstitch.services.renderer import _align_timezone, _extract_creation_time, _validate_creation_time
 
 logger = logging.getLogger(__name__)
 
@@ -186,9 +186,18 @@ def _analyze_sync(
     gpx_path: Path | None,
 ) -> TimeSyncAnalyzeResponse:
     """Run blocking time sync analysis (ffprobe + GPX parsing)."""
+    # Get video duration (needed for creation_time validation)
+    try:
+        video_duration_sec = _get_video_duration(video_path)
+    except Exception as e:
+        logger.warning("Failed to get video duration for creation_time validation: %s", e)
+        video_duration_sec = 0.0
+
     # Extract creation time
     creation_time = _extract_creation_time(video_path)
     if creation_time is not None:
+        # Cross-validate against GPS data to detect cameras with local-time creation_time
+        creation_time = _validate_creation_time(video_path, creation_time, video_duration_sec, gpx_path)
         video_start = creation_time
         source = "media-created"
     else:
@@ -197,9 +206,6 @@ def _analyze_sync(
         fstat = filestat(video_path)
         video_start = fstat.ctime
         source = "file-created"
-
-    # Get video duration
-    video_duration_sec = _get_video_duration(video_path)
 
     # Apply offset
     if time_offset_seconds:

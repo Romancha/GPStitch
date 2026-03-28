@@ -151,10 +151,24 @@ class RenderService:
                 logger.warning("Failed to extract DJI meta GPS timestamp for mtime alignment")
 
         if config.video_time_alignment in ("auto", "manual") and not is_srt:
-            from gpstitch.services.renderer import _extract_creation_time
+            from gpstitch.services.renderer import _extract_creation_time, _validate_creation_time
 
             creation_time = _extract_creation_time(Path(video_path))
             if creation_time is not None:
+                # Cross-validate creation_time against GPS data.
+                # Some cameras (Insta360, DJI) store creation_time in local time
+                # but ffprobe reports it as UTC — detect and correct via mtime.
+                gps_path = Path(secondary.file_path) if secondary and secondary.file_type in ("gpx", "fit") else None
+                video_duration_sec = 0.0
+                try:
+                    from gopro_overlay.ffmpeg import FFMPEG
+                    from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
+
+                    recording = FFMPEGGoPro(FFMPEG()).find_recording(Path(video_path))
+                    video_duration_sec = recording.video.duration.millis() / 1000.0
+                except Exception as e:
+                    logger.warning("Failed to get video duration for creation_time validation: %s", e)
+                creation_time = _validate_creation_time(Path(video_path), creation_time, video_duration_sec, gps_path)
                 ts = creation_time.timestamp()
             else:
                 from gopro_overlay.ffmpeg_gopro import filestat
