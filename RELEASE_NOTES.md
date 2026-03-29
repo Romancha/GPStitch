@@ -1,5 +1,21 @@
 # Release Notes
 
+## Version 0.13.0 — 29 Mar 2026
+
+### 🆕 New
+
+- **Independent video and GPS file selection** — Video and GPS file fields are now fully decoupled; changing the video file no longer clears the GPS file, making it easier to mix and match files ([#10](https://github.com/Romancha/GPStitch/issues/10))
+
+### ✨ Improvements
+
+- Added Time Sync mode descriptions to the UI for better discoverability ([#11](https://github.com/Romancha/GPStitch/issues/11))
+
+### 🐞 Fixes
+
+- Fixed incorrect timezone detection for non-GoPro cameras (e.g. Insta360) where `creation_time` is written as local time but reported as UTC — now cross-validates against GPS data and falls back to file mtime ([#9](https://github.com/Romancha/GPStitch/issues/9))
+
+---
+
 ## Version 0.12.1 — 21 Mar 2026
 
 ### 🆕 New
