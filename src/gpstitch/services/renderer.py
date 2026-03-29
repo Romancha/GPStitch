@@ -5,6 +5,7 @@ import base64
 import datetime
 import io
 import logging
+import os
 import re
 import shlex
 import tempfile
@@ -417,11 +418,123 @@ def _extract_creation_time(file_path: Path) -> datetime.datetime | None:
     return None
 
 
+def _get_gps_time_range(gps_path: Path) -> tuple[float, float] | None:
+    """Get (min_timestamp, max_timestamp) in UTC from a GPX or FIT file.
+
+    Returns Unix timestamps or None if parsing fails.
+    Uses load_external for reliable parsing (GPX/FIT always store UTC).
+
+    Note: This re-parses the GPS file even though callers may load it again later
+    for rendering. The extra parse adds ~50-200ms for typical FIT/GPX files (< 2MB),
+    which is negligible vs. render times (minutes). Caching was considered but deferred
+    as premature — revisit if profiling shows GPS parsing as a bottleneck.
+    """
+    try:
+        from gopro_overlay.loading import load_external
+        from gopro_overlay.units import units
+
+        timeseries = load_external(gps_path, units)
+        entries = timeseries.items()
+        if len(entries) < 2:
+            return None
+        return (entries[0].dt.timestamp(), entries[-1].dt.timestamp())
+    except Exception as e:
+        logger.debug("Could not get GPS time range from %s: %s", gps_path, e)
+        return None
+
+
+def _validate_creation_time(
+    file_path: Path,
+    creation_time: datetime.datetime,
+    video_duration_sec: float = 0.0,
+    gps_path: Path | None = None,
+) -> datetime.datetime:
+    """Validate creation_time against GPS data and file mtime.
+
+    Problem: The MP4 spec says creation_time should be UTC, and ffprobe always
+    appends a 'Z' suffix. GoPro follows the spec correctly, but cameras like
+    Insta360 (Go 3S, X4, etc.) write local time into creation_time. For example,
+    a video recorded at 14:00 UTC+5:30 gets creation_time "2024-01-01T19:30:00Z"
+    instead of "2024-01-01T14:00:00Z". This causes time sync failures with GPS
+    data — the video appears to start hours away from the actual GPS track.
+
+    Solution: When GPS data is available, cross-validate by checking if
+    creation_time overlaps the GPS time range. If it doesn't but file mtime does,
+    prefer mtime (which reflects real UTC from the filesystem).
+
+    Note on mtime reliability: mtime is preserved when copying from SD card
+    (drag-and-drop, cp) which is the primary workflow. However, mtime may be
+    wrong if the file was downloaded from cloud storage (e.g. Insta360 app sync)
+    or cloned from git — in those cases mtime reflects the download/checkout time.
+    When neither creation_time nor mtime overlaps GPS, we fall back to creation_time
+    which limits the blast radius of a corrupted mtime.
+
+    Args:
+        file_path: Path to the video file.
+        creation_time: Extracted creation_time (may be wrong timezone).
+        video_duration_sec: Video duration in seconds (0 = unknown, validation skipped).
+        gps_path: Path to secondary GPS file (GPX/FIT) or None.
+
+    Returns:
+        Validated datetime — either original creation_time or corrected from mtime.
+    """
+    if gps_path is None or gps_path.suffix.lower() not in (".gpx", ".fit"):
+        return creation_time
+
+    if video_duration_sec <= 0:
+        # Without a known duration, overlap checks are unreliable — skip validation.
+        # A long GPS track (8+ hours) would make the overlap nearly always true,
+        # defeating timezone mismatch detection.
+        return creation_time
+
+    gps_range = _get_gps_time_range(gps_path)
+    if gps_range is None:
+        return creation_time
+
+    gps_min, gps_max = gps_range
+
+    ct_ts = creation_time.timestamp()
+
+    # Check if creation_time + duration overlaps with GPS range
+    ct_overlaps = ct_ts <= gps_max and (ct_ts + video_duration_sec) >= gps_min
+
+    if ct_overlaps:
+        return creation_time
+
+    # creation_time doesn't overlap — check mtime
+    try:
+        mtime_ts = os.stat(file_path).st_mtime
+    except OSError:
+        return creation_time
+
+    # mtime could be recording start or end, so check both possibilities
+    # As start: [mtime, mtime + duration]
+    mtime_start_overlaps = mtime_ts <= gps_max and (mtime_ts + video_duration_sec) >= gps_min
+    # As end: [mtime - duration, mtime]
+    mtime_end_overlaps = (mtime_ts - video_duration_sec) <= gps_max and mtime_ts >= gps_min
+
+    if mtime_start_overlaps or mtime_end_overlaps:
+        mtime_dt = datetime.datetime.fromtimestamp(mtime_ts, tz=datetime.UTC)
+        if mtime_end_overlaps and not mtime_start_overlaps:
+            # mtime is recording end — adjust to start
+            mtime_dt = mtime_dt - datetime.timedelta(seconds=video_duration_sec)
+        logger.info(
+            "creation_time %s doesn't overlap GPS range, using file mtime %s instead",
+            creation_time.isoformat(),
+            mtime_dt.isoformat(),
+        )
+        return mtime_dt
+
+    # Neither overlaps — keep creation_time as fallback
+    return creation_time
+
+
 def _resolve_time_alignment(
     file_path: Path,
     video_time_alignment: str | None,
     ffmpeg_gopro,
     time_offset_seconds: int = 0,
+    gpx_path: Path | None = None,
 ):
     """Resolve video start_date and duration for GPX time alignment.
 
@@ -433,6 +546,9 @@ def _resolve_time_alignment(
     - "manual": auto-detected time + offset shift.
       Returns (start_date + offset, duration, source).
 
+    When gpx_path is provided, cross-validates creation_time against GPS data
+    to detect cameras that store local time as UTC (e.g. Insta360).
+
     Returns (start_date, duration, source) where source is
     "media-created", "file-created", or None.
     """
@@ -441,9 +557,11 @@ def _resolve_time_alignment(
 
     recording = ffmpeg_gopro.find_recording(file_path)
     duration = recording.video.duration
+    duration_sec = duration.millis() / 1000.0
 
     creation_time = _extract_creation_time(file_path)
     if creation_time is not None:
+        creation_time = _validate_creation_time(file_path, creation_time, duration_sec, gpx_path)
         start_date = creation_time
         source = "media-created"
     else:
@@ -813,7 +931,11 @@ def render_preview(
                     timeseries = _load_external_timeseries(gpx_path, units)
                     _apply_timeseries_processing(timeseries)
                     start_date, duration, _source = _resolve_time_alignment(
-                        file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
+                        file_path,
+                        video_time_alignment,
+                        ffmpeg_gopro,
+                        time_offset_seconds,
+                        gpx_path=gpx_path,
                     )
                     start_date = _align_timezone(start_date, timeseries)
                     framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
@@ -1044,7 +1166,11 @@ def _render_layout_with_data(
                     timeseries = _load_external_timeseries(gpx_path, units)
                     _apply_timeseries_processing(timeseries)
                     start_date, duration, _source = _resolve_time_alignment(
-                        file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
+                        file_path,
+                        video_time_alignment,
+                        ffmpeg_gopro,
+                        time_offset_seconds,
+                        gpx_path=gpx_path,
                     )
                     start_date = _align_timezone(start_date, timeseries)
                     framemeta = timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)

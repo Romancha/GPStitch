@@ -51,6 +51,7 @@ class GpxOptionsPanel {
                             <option value="manual">Manual offset...</option>
                         </select>
                     </div>
+                    <div class="gpx-option-desc" id="time-alignment-desc"></div>
 
                     <!-- Time sync hint -->
                     <div class="time-sync-hint" id="time-sync-hint" style="display: none;"></div>
@@ -76,6 +77,7 @@ class GpxOptionsPanel {
         this.mergeModeSelect = document.getElementById('gpx-merge-mode');
         this.timeAlignmentSelect = document.getElementById('video-time-alignment');
         this.mergeModeDesc = document.getElementById('merge-mode-desc');
+        this.timeAlignmentDesc = document.getElementById('time-alignment-desc');
         this.timeSyncHint = document.getElementById('time-sync-hint');
         this.manualOffsetPanel = document.getElementById('manual-offset-panel');
         this.offsetInput = document.getElementById('time-offset-seconds');
@@ -90,6 +92,7 @@ class GpxOptionsPanel {
 
         // Update description for initial value
         this._updateMergeModeDesc();
+        this._updateTimeAlignmentDesc();
         this._updateManualPanelVisibility();
     }
 
@@ -103,6 +106,17 @@ class GpxOptionsPanel {
         }
     }
 
+    _updateTimeAlignmentDesc() {
+        const descriptions = {
+            'auto': 'Sync video to GPS using video metadata timestamp, with automatic timezone validation',
+            'gpx-timestamps': 'Use GPS timestamps as-is, no alignment with video. Best when GPX is pre-trimmed to match the video',
+            'manual': 'Same as Auto, but with a manual time correction in seconds'
+        };
+        if (this.timeAlignmentDesc) {
+            this.timeAlignmentDesc.textContent = descriptions[this.timeAlignmentSelect.value] || '';
+        }
+    }
+
     _attachListeners() {
         this.mergeModeSelect?.addEventListener('change', (e) => {
             this.state.updateGpxOptions({ gpxMergeMode: e.target.value });
@@ -111,6 +125,7 @@ class GpxOptionsPanel {
 
         this.timeAlignmentSelect?.addEventListener('change', (e) => {
             this.state.updateGpxOptions({ videoTimeAlignment: e.target.value });
+            this._updateTimeAlignmentDesc();
             this._updateManualPanelVisibility();
             // Reset offset when switching away from manual and trigger re-analysis
             if (e.target.value !== 'manual') {

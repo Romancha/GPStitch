@@ -223,6 +223,73 @@ class FileManager:
 
         return True
 
+    def promote_secondary_to_primary(self, session_id: str) -> list[FileInfo]:
+        """Promote secondary file to primary after primary removal.
+
+        Used when video is removed but GPS file should be kept as primary (GPS-only mode).
+        """
+        files = self.get_files(session_id)
+        secondary = None
+        for f in files:
+            if f.role == FileRole.SECONDARY:
+                secondary = f
+                break
+
+        if not secondary:
+            raise ValueError("No secondary file to promote")
+
+        secondary.role = FileRole.PRIMARY
+        self._save_files_metadata(session_id, files)
+        return files
+
+    def replace_primary(
+        self,
+        session_id: str,
+        filename: str,
+        file_path: Path,
+        file_type: str,
+        video_metadata: VideoMetadata | None = None,
+        gps_quality: GPSQualityReport | None = None,
+    ) -> list[FileInfo]:
+        """Replace primary file, keeping secondary intact.
+
+        Used when swapping video in a merge session (video + GPS).
+        """
+        files = self.get_files(session_id)
+
+        # Remove old primary
+        old_primary = None
+        for f in files:
+            if f.role == FileRole.PRIMARY:
+                old_primary = f
+                break
+
+        if not old_primary:
+            raise ValueError("No primary file to replace")
+
+        # Remove physical file if not local session
+        # Skip if old and new paths are the same (same filename upload overwrites in place)
+        if not self.is_local_session(session_id):
+            old_path = Path(old_primary.file_path)
+            if old_path.exists() and not old_path.samefile(file_path):
+                old_path.unlink()
+
+        files = [f for f in files if f.role != FileRole.PRIMARY]
+
+        # Add new primary
+        new_primary = FileInfo(
+            filename=filename,
+            file_path=str(file_path),
+            file_type=file_type,
+            role=FileRole.PRIMARY,
+            video_metadata=video_metadata,
+            gps_quality=gps_quality,
+        )
+        files.append(new_primary)
+
+        self._save_files_metadata(session_id, files)
+        return files
+
     def get_file_path(self, session_id: str) -> Path | None:
         """Get the path to the primary file in a session.
 

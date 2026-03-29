@@ -69,15 +69,22 @@ async def use_local_file(request: LocalFileRequest) -> UploadResponse:
     # Determine file type and extract metadata
     file_type = get_file_type(file_path)
 
-    # Check if we should reuse an existing session with GPX/FIT primary
+    # Check if we should reuse an existing session
     reuse_session = False
+    replace_video = False
     session_id = request.session_id
     if session_id and file_manager.session_exists(session_id):
         existing_primary = file_manager.get_primary_file(session_id)
         if existing_primary and existing_primary.file_type in ("gpx", "fit", "srt") and file_type == "video":
+            # GPS is primary, video being added → promote video to primary
             reuse_session = True
+        elif existing_primary and existing_primary.file_type == "video" and file_type == "video":
+            # Video is primary, replacing with new video → keep GPS secondary
+            existing_secondary = file_manager.get_secondary_file(session_id)
+            if existing_secondary:
+                replace_video = True
 
-    if not reuse_session:
+    if not reuse_session and not replace_video:
         session_id = file_manager.create_local_session()
 
     video_metadata = None
@@ -89,7 +96,7 @@ async def use_local_file(request: LocalFileRequest) -> UploadResponse:
             video_metadata = extract_video_metadata(file_path)
         except Exception as e:
             logger.error(f"Failed to extract video metadata: {e}")
-            if not reuse_session:
+            if not reuse_session and not replace_video:
                 file_manager.cleanup_session(session_id)
             raise HTTPException(
                 status_code=400,
@@ -109,7 +116,7 @@ async def use_local_file(request: LocalFileRequest) -> UploadResponse:
             gpx_fit_metadata = extract_gpx_fit_metadata(file_path)
         except Exception as e:
             logger.error(f"Failed to extract GPX/FIT metadata: {e}")
-            if not reuse_session:
+            if not reuse_session and not replace_video:
                 file_manager.cleanup_session(session_id)
             raise HTTPException(
                 status_code=400,
@@ -121,6 +128,53 @@ async def use_local_file(request: LocalFileRequest) -> UploadResponse:
             gps_quality = analyze_external_gps_quality(file_path)
         except Exception as e:
             logger.warning(f"Failed to analyze GPS quality: {e}")
+
+    # If replacing video in merge session, swap primary and optionally update secondary
+    if replace_video:
+        try:
+            files = file_manager.replace_primary(
+                session_id=session_id,
+                filename=file_path.name,
+                file_path=file_path,
+                file_type=file_type,
+                video_metadata=video_metadata,
+                gps_quality=gps_quality,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+        # Auto-match: if matching telemetry found, replace secondary; otherwise keep existing
+        has_embedded_gps = video_metadata and video_metadata.has_dji_meta
+        if settings.local_mode and not has_embedded_gps:
+            auto_secondary = _find_matching_telemetry(file_path)
+            if auto_secondary:
+                try:
+                    secondary_metadata = extract_gpx_fit_metadata(auto_secondary)
+                    secondary_type = get_file_type(auto_secondary)
+                    secondary_quality = None
+                    try:
+                        secondary_quality = analyze_external_gps_quality(auto_secondary)
+                    except Exception as e:
+                        logger.warning(f"Failed to analyze GPS quality for auto-detected file: {e}")
+                    file_manager.remove_file_by_role(session_id, FileRole.SECONDARY)
+                    file_manager.add_file(
+                        session_id=session_id,
+                        filename=auto_secondary.name,
+                        file_path=auto_secondary,
+                        file_type=secondary_type,
+                        role=FileRole.SECONDARY,
+                        gpx_fit_metadata=secondary_metadata,
+                        gps_quality=secondary_quality,
+                    )
+                    logger.info(f"Auto-detected telemetry file: {auto_secondary.name}")
+                except Exception as e:
+                    logger.warning(f"Failed to auto-load telemetry file {auto_secondary}: {e}")
+
+        files = file_manager.get_files(session_id)
+        return UploadResponse(
+            session_id=session_id,
+            files=files,
+        )
 
     # If reusing session, promote video to primary (demote GPX/FIT to secondary)
     if reuse_session:
@@ -315,17 +369,32 @@ async def upload_file(
             detail=f"File too large. Maximum size: {settings.max_upload_size_bytes / (1024 * 1024 * 1024):.1f}GB",
         )
 
-    # Check if we should reuse an existing session with GPX/FIT primary
+    # Check if we should reuse an existing session
     reuse_session = False
+    replace_video = False
     if session_id and file_manager.session_exists(session_id):
         existing_primary = file_manager.get_primary_file(session_id)
         file_type_preview = get_file_type(Path(file.filename))
         if existing_primary and existing_primary.file_type in ("gpx", "fit", "srt") and file_type_preview == "video":
             reuse_session = True
+        elif existing_primary and existing_primary.file_type == "video" and file_type_preview == "video":
+            existing_secondary = file_manager.get_secondary_file(session_id)
+            if existing_secondary:
+                replace_video = True
 
-    if reuse_session:
-        # Save video to existing session
-        file_path = file_manager.save_file(session_id, file.filename, content)
+    # Track whether the new upload overwrites an existing file with the same name
+    same_name_overwrite = False
+    if replace_video:
+        existing_primary = file_manager.get_primary_file(session_id)
+        if existing_primary and Path(existing_primary.file_path).name.lower() == file.filename.lower():
+            same_name_overwrite = True
+
+    if reuse_session or replace_video:
+        if same_name_overwrite:
+            # Save to a temp name first to avoid destroying the original if validation fails
+            file_path = file_manager.save_file(session_id, f".tmp_{file.filename}", content)
+        else:
+            file_path = file_manager.save_file(session_id, file.filename, content)
     else:
         # Create new session
         session_id = file_manager.create_session()
@@ -344,7 +413,7 @@ async def upload_file(
             video_metadata = extract_video_metadata(file_path)
         except Exception as e:
             logger.error(f"Failed to extract video metadata: {e}")
-            if not reuse_session:
+            if not reuse_session and not replace_video:
                 file_manager.cleanup_session(session_id)
             else:
                 file_path.unlink(missing_ok=True)
@@ -366,7 +435,7 @@ async def upload_file(
             gpx_fit_metadata = extract_gpx_fit_metadata(file_path)
         except Exception as e:
             logger.error(f"Failed to extract GPX/FIT metadata: {e}")
-            if not reuse_session:
+            if not reuse_session and not replace_video:
                 file_manager.cleanup_session(session_id)
             else:
                 file_path.unlink(missing_ok=True)
@@ -380,6 +449,32 @@ async def upload_file(
             gps_quality = analyze_external_gps_quality(file_path)
         except Exception as e:
             logger.warning(f"Failed to analyze GPS quality: {e}")
+
+    # If we saved to a temp name, atomically replace the original now that validation passed
+    if same_name_overwrite:
+        final_path = file_path.parent / file.filename
+        file_path.replace(final_path)
+        file_path = final_path
+
+    # If replacing video in merge session, swap primary and keep secondary
+    if replace_video:
+        try:
+            files = file_manager.replace_primary(
+                session_id=session_id,
+                filename=file.filename,
+                file_path=file_path,
+                file_type=file_type,
+                video_metadata=video_metadata,
+                gps_quality=gps_quality,
+            )
+        except ValueError as e:
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+        return UploadResponse(
+            session_id=session_id,
+            files=files,
+        )
 
     # If reusing session, promote video to primary (demote GPX/FIT to secondary)
     if reuse_session:
@@ -512,6 +607,32 @@ async def remove_secondary_file(session_id: str) -> UploadResponse:
         raise HTTPException(status_code=404, detail="No secondary file in session")
 
     files = file_manager.get_files(session_id)
+
+    return UploadResponse(
+        session_id=session_id,
+        files=files,
+    )
+
+
+@router.delete("/session/{session_id}/primary", response_model=UploadResponse)
+async def remove_primary_file(session_id: str) -> UploadResponse:
+    """Remove primary video file, promote secondary GPS to primary.
+
+    Used when user clears video but wants to keep GPS file loaded.
+    """
+    if not file_manager.session_exists(session_id):
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    primary = file_manager.get_primary_file(session_id)
+    if not primary or primary.file_type != "video":
+        raise HTTPException(status_code=400, detail="No video primary file to remove")
+
+    secondary = file_manager.get_secondary_file(session_id)
+    if not secondary:
+        raise HTTPException(status_code=400, detail="No secondary file to promote")
+
+    file_manager.remove_file_by_role(session_id, FileRole.PRIMARY)
+    files = file_manager.promote_secondary_to_primary(session_id)
 
     return UploadResponse(
         session_id=session_id,

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
-from gpstitch.services.renderer import _fit_video_to_canvas, _resolve_time_alignment
+from gpstitch.services.renderer import _fit_video_to_canvas, _resolve_time_alignment, _validate_creation_time
 
 
 class TestFitVideoToCanvas:
@@ -521,6 +521,185 @@ class TestResolveTimeAlignment:
             )
 
         assert start_date == creation_time
+
+
+class TestValidateCreationTime:
+    """Tests for _validate_creation_time — cross-validation of creation_time against GPS data."""
+
+    # Simulate Insta360 bug: creation_time is local PST (UTC-8) stored as UTC.
+    # Real UTC should be 19:34:47, but camera wrote 11:34:47 as UTC.
+    WRONG_CREATION_TIME = datetime.datetime(2026, 2, 6, 11, 34, 47, tzinfo=datetime.UTC)
+    CORRECT_MTIME_TS = datetime.datetime(2026, 2, 6, 19, 34, 47, tzinfo=datetime.UTC).timestamp()
+    VIDEO_DURATION = 50.0  # 50 seconds
+
+    # GPS range: 18:10:23 UTC -> 20:02:53 UTC
+    GPS_RANGE = (
+        datetime.datetime(2026, 2, 6, 18, 10, 23, tzinfo=datetime.UTC).timestamp(),
+        datetime.datetime(2026, 2, 6, 20, 2, 53, tzinfo=datetime.UTC).timestamp(),
+    )
+
+    def test_creation_time_correct_gopro(self):
+        """When creation_time overlaps GPS range (GoPro), keep it as-is."""
+        correct_ct = datetime.datetime(2026, 2, 6, 19, 34, 47, tzinfo=datetime.UTC)
+        with patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE):
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), correct_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        assert result == correct_ct
+
+    def test_creation_time_wrong_mtime_correct_insta360(self):
+        """When creation_time doesn't overlap but mtime does (Insta360), use mtime."""
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = self.CORRECT_MTIME_TS
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        expected = datetime.datetime.fromtimestamp(self.CORRECT_MTIME_TS, tz=datetime.UTC)
+        assert result == expected
+
+    def test_mtime_as_recording_end(self):
+        """When mtime is at the end of GPS range, only end-overlap triggers, adjust to start."""
+        # GPS range: 18:10:23 -> 20:02:53 UTC
+        # mtime = 20:02:50 UTC (near end of GPS range)
+        # As start: [20:02:50, 20:03:40] — barely overlaps GPS end, so start_overlaps=True
+        # Use a longer duration to make the distinction clearer:
+        # mtime = 20:03:00 UTC, duration = 120s (2 min)
+        # As start: [20:03:00, 20:05:00] — start > gps_max (20:02:53), so start_overlaps=False
+        # As end: [20:01:00, 20:03:00] — overlaps GPS range, so end_overlaps=True
+        mtime_end = datetime.datetime(2026, 2, 6, 20, 3, 0, tzinfo=datetime.UTC).timestamp()
+        video_duration = 120.0
+        wrong_ct = datetime.datetime(2026, 2, 6, 3, 0, 0, tzinfo=datetime.UTC)
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = mtime_end
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, video_duration, Path("/tmp/track.fit"))
+        # mtime is recording end — should be adjusted to start (mtime - duration)
+        expected = datetime.datetime.fromtimestamp(mtime_end, tz=datetime.UTC) - datetime.timedelta(
+            seconds=video_duration
+        )
+        assert result == expected
+
+    def test_neither_overlaps_fallback_to_creation_time(self):
+        """When neither creation_time nor mtime overlaps, keep creation_time."""
+        wrong_ct = datetime.datetime(2026, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+        wrong_mtime = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        assert result == wrong_ct
+
+    def test_no_gps_path_returns_creation_time(self):
+        """Without GPS file, return creation_time unchanged."""
+        result = _validate_creation_time(Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, None)
+        assert result == self.WRONG_CREATION_TIME
+
+    def test_srt_file_skipped(self):
+        """SRT files are not used for validation (they have naive local timestamps)."""
+        result = _validate_creation_time(
+            Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.srt")
+        )
+        assert result == self.WRONG_CREATION_TIME
+
+    def test_gps_range_extraction_fails_returns_creation_time(self):
+        """If GPS time range extraction fails, return creation_time unchanged."""
+        with patch("gpstitch.services.renderer._get_gps_time_range", return_value=None):
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        assert result == self.WRONG_CREATION_TIME
+
+    def test_zero_duration_skips_validation(self):
+        """When video_duration_sec=0 (ffprobe failed), skip validation entirely."""
+        # Even though mtime would overlap and creation_time wouldn't,
+        # we can't reliably validate without a known duration.
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE) as mock_gps,
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = self.CORRECT_MTIME_TS
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, 0.0, Path("/tmp/track.fit")
+            )
+        # Should return creation_time unchanged — no GPS range lookup should happen
+        assert result == self.WRONG_CREATION_TIME
+        mock_gps.assert_not_called()
+        mock_stat.assert_not_called()
+
+    def test_gps_single_point_skips_validation(self):
+        """FIT/GPX with 1 point returns None from _get_gps_time_range, validation skipped."""
+        with patch("gpstitch.services.renderer._get_gps_time_range", return_value=None):
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.gpx")
+            )
+        assert result == self.WRONG_CREATION_TIME
+
+    def test_creation_time_at_gps_boundary(self):
+        """creation_time exactly at GPS range start, duration extends into range → overlaps."""
+        # creation_time = gps_min exactly, duration extends into GPS range
+        ct_at_boundary = datetime.datetime.fromtimestamp(self.GPS_RANGE[0], tz=datetime.UTC)
+        with patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE):
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), ct_at_boundary, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        assert result == ct_at_boundary
+
+    def test_both_mtime_overlaps_uses_start(self):
+        """mtime in middle of GPS range — both start and end overlap → mtime used as recording start."""
+        # GPS range: 18:10:23 -> 20:02:53 UTC
+        # mtime = 19:00:00 UTC (middle of GPS range), duration = 50s
+        # As start: [19:00:00, 19:00:50] — overlaps ✓
+        # As end: [18:59:10, 19:00:00] — overlaps ✓
+        # Both overlap → use mtime as-is (recording start)
+        wrong_ct = datetime.datetime(2026, 2, 6, 3, 0, 0, tzinfo=datetime.UTC)
+        mtime_mid = datetime.datetime(2026, 2, 6, 19, 0, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = mtime_mid
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        # Both overlaps true → mtime used as start (no subtraction)
+        expected = datetime.datetime.fromtimestamp(mtime_mid, tz=datetime.UTC)
+        assert result == expected
+
+    def test_non_whole_hour_timezone_offset(self):
+        """creation_time off by 5.5 hours (UTC+5:30 India), should fail overlap, mtime should win."""
+        # GPS range: 18:10:23 -> 20:02:53 UTC
+        # Real recording at 19:30:00 UTC, but camera stored local time 01:00:00+05:30 = 01:00:00Z
+        wrong_ct = datetime.datetime(2026, 2, 7, 1, 0, 0, tzinfo=datetime.UTC)  # 5.5h ahead
+        correct_mtime = datetime.datetime(2026, 2, 6, 19, 30, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = correct_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        expected = datetime.datetime.fromtimestamp(correct_mtime, tz=datetime.UTC)
+        assert result == expected
+
+    def test_video_starts_before_gps_data(self):
+        """creation_time before GPS range start, but duration extends into range → should overlap."""
+        # GPS range: 18:10:23 -> 20:02:53 UTC
+        # creation_time = 18:05:00, duration = 600s (10 min) → video ends at 18:15:00
+        # Overlap: 18:05:00 <= 20:02:53 AND 18:15:00 >= 18:10:23 → True
+        ct_before = datetime.datetime(2026, 2, 6, 18, 5, 0, tzinfo=datetime.UTC)
+        with patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE):
+            result = _validate_creation_time(Path("/tmp/video.mp4"), ct_before, 600.0, Path("/tmp/track.fit"))
+        assert result == ct_before
 
 
 class TestLayoutCommandGeneration:

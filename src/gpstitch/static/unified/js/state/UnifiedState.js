@@ -137,7 +137,27 @@ class UnifiedState {
      */
     setFiles(files) {
         this.files = files || [];
+
+        // Recompute duration from new primary file
+        const primary = this.getPrimaryFile();
+        if (primary?.video_metadata) {
+            this.duration = primary.video_metadata.duration_seconds * 1000;
+        } else if (primary?.gpx_fit_metadata?.duration_seconds) {
+            this.duration = primary.gpx_fit_metadata.duration_seconds * 1000;
+        } else {
+            this.duration = 0;
+        }
+
+        // Clamp current frame time to new duration
+        if (this.currentFrameTimeMs > this.duration) {
+            this.currentFrameTimeMs = Math.round(this.duration / 2);
+        }
+
         this.emit('files:changed', { files: this.files });
+        this.emit('timeline:changed', {
+            duration: this.duration,
+            currentTime: this.currentFrameTimeMs
+        });
     }
 
     /**
