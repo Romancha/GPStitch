@@ -189,7 +189,12 @@ class GpxOptionsPanel {
             const baseDate = new Date(adjustedDate.getTime() - offset * 1000);
             const baseFmt = this._formatDateTime(baseDate);
             const resultFmt = this._formatDateTime(adjustedDate);
-            this.manualOffsetInfo.textContent = `${baseFmt} → ${resultFmt}`;
+            let text = `Video: ${baseFmt} → ${resultFmt}`;
+            if (info.gps_start && info.gps_end) {
+                const gpsFmt = `${this._formatDateTime(new Date(info.gps_start))}-${this._formatTime(new Date(info.gps_end))}`;
+                text += `\nGPS: ${gpsFmt}`;
+            }
+            this.manualOffsetInfo.textContent = text;
         }
     }
 
@@ -230,11 +235,11 @@ class GpxOptionsPanel {
 
     _formatDateTime(date) {
         const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+        return `${months[date.getUTCMonth()]} ${date.getUTCDate()}, ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}:${String(date.getUTCSeconds()).padStart(2, '0')}`;
     }
 
     _formatTime(date) {
-        return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
+        return `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}:${String(date.getUTCSeconds()).padStart(2, '0')}`;
     }
 
     _updateVisibility() {

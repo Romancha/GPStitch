@@ -12,7 +12,12 @@ from pydantic import BaseModel, Field
 
 from gpstitch.models.schemas import FileRole
 from gpstitch.services.file_manager import file_manager
-from gpstitch.services.renderer import _align_timezone, _extract_creation_time, _validate_creation_time
+from gpstitch.services.renderer import (
+    _align_timezone,
+    _extract_creation_time,
+    _get_gps_time_range,
+    _validate_creation_time,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +41,8 @@ class TimeSyncAnalyzeResponse(BaseModel):
     video_duration_sec: float
     source: str = Field(description="'media-created' or 'file-created'")
     overlap: OverlapInfo | None = None
+    gps_start: str | None = Field(default=None, description="GPS track start time, ISO UTC")
+    gps_end: str | None = Field(default=None, description="GPS track end time, ISO UTC")
 
 
 def _get_video_duration(file_path: Path) -> float:
@@ -211,14 +218,22 @@ def _analyze_sync(
     if time_offset_seconds:
         video_start = video_start + datetime.timedelta(seconds=time_offset_seconds)
 
-    # Calculate overlap with GPX if available
+    # Calculate overlap and GPS time range if available
     overlap = None
+    gps_start_iso = None
+    gps_end_iso = None
     if gpx_path is not None:
         overlap = _calculate_overlap(video_start, video_duration_sec, gpx_path)
+        gps_range = _get_gps_time_range(gpx_path)
+        if gps_range:
+            gps_start_iso = datetime.datetime.fromtimestamp(gps_range[0], tz=datetime.UTC).isoformat()
+            gps_end_iso = datetime.datetime.fromtimestamp(gps_range[1], tz=datetime.UTC).isoformat()
 
     return TimeSyncAnalyzeResponse(
         video_start=video_start.isoformat(),
         video_duration_sec=round(video_duration_sec, 1),
         source=source,
         overlap=overlap,
+        gps_start=gps_start_iso,
+        gps_end=gps_end_iso,
     )
