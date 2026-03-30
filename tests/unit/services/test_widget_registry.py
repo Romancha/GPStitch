@@ -51,6 +51,17 @@ class TestWidgetRegistryMetadata:
         assert "chart" in types
 
 
+class TestWidgetRegistryUnits:
+    """Tests for available units."""
+
+    def test_available_units_includes_degree(self):
+        """Degree unit should be available for orientation metrics."""
+        from gpstitch.services.widget_registry import AVAILABLE_UNITS
+
+        values = [u.value for u in AVAILABLE_UNITS]
+        assert "degree" in values
+
+
 class TestWidgetRegistryCategories:
     """Tests for widget categories."""
 

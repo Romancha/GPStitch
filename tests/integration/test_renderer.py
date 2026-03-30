@@ -365,6 +365,58 @@ class TestZoneBarPositioning:
 
 
 @pytest.mark.integration
+class TestRendererOrientationDegrees:
+    """Tests for orientation metrics with degree units (GitHub issue #14).
+
+    Orientation metrics (ori.pitch, ori.roll, ori.yaw) are stored as radians
+    in gopro-overlay. The 'degree' unit should convert them via pint fallback.
+    """
+
+    def test_render_orientation_pitch_in_degrees(self, integration_test_video):
+        """Metric widget with ori.pitch and units=degree should render successfully."""
+        from gpstitch.models.editor import CanvasSettings, EditorLayout, LayoutMetadata, WidgetInstance
+        from gpstitch.services.renderer import _render_layout_with_data
+        from gpstitch.services.xml_converter import xml_converter
+
+        layout = EditorLayout(
+            id="test-ori-pitch-degree",
+            metadata=LayoutMetadata(name="Orientation Pitch Degrees"),
+            canvas=CanvasSettings(width=1920, height=1080),
+            widgets=[
+                WidgetInstance(
+                    id="metric-ori-pitch",
+                    type="metric",
+                    x=100,
+                    y=100,
+                    properties={
+                        "metric": "ori.pitch",
+                        "units": "degree",
+                        "dp": "1",
+                        "size": "40",
+                    },
+                ),
+            ],
+        )
+
+        xml_content = xml_converter.layout_to_xml(layout)
+        assert 'metric="ori.pitch"' in xml_content
+        assert 'units="degree"' in xml_content
+
+        png_bytes, width, height = _render_layout_with_data(
+            xml_content=xml_content,
+            file_path=integration_test_video,
+            frame_time_ms=5000,
+            width=1920,
+            height=1080,
+        )
+
+        assert len(png_bytes) > 0
+        assert png_bytes[:8] == b"\x89PNG\r\n\x1a\n"
+        assert width == 1920
+        assert height == 1080
+
+
+@pytest.mark.integration
 class TestRendererUnits:
     """Tests for unit options."""
 

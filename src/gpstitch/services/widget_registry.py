@@ -60,6 +60,7 @@ AVAILABLE_UNITS = [
     SelectOption(value="altitude", label="Altitude (user setting)"),
     SelectOption(value="distance", label="Distance (user setting)"),
     SelectOption(value="G", label="G-force"),
+    SelectOption(value="degree", label="Degrees (°)"),
     SelectOption(value="temp", label="Temperature (user setting)"),
 ]
 
