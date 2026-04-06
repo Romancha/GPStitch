@@ -84,3 +84,39 @@ def integration_test_dji_action_video():
     # Restore original mtime that git clone does not preserve
     os.utime(path, (_DJI_ACTION_VIDEO_ORIGINAL_MTIME, _DJI_ACTION_VIDEO_ORIGINAL_MTIME))
     return path
+
+
+# MOV fixture with creation_time set to local time (UTC+3) stored as UTC.
+# Real creation: 2024-08-08T16:52:19 UTC, but metadata says 19:52:19Z.
+# mtime also set to wrong time so mtime fallback doesn't trigger.
+_MOV_TZ_TEST_WRONG_MTIME = datetime(2024, 8, 8, 19, 52, 19, tzinfo=UTC).timestamp()
+
+
+@pytest.fixture(scope="module")
+def integration_test_mov_tz_test():
+    """MOV video with local time stored as UTC for timezone auto-correction tests."""
+    from tests.fixtures.data import TEST_MOV_TZ_TEST_PATH
+
+    path = Path(TEST_MOV_TZ_TEST_PATH)
+    if not path.exists():
+        pytest.skip(f"Integration test MOV tz-test not found: {path}")
+    # Restore wrong mtime (git clone does not preserve file timestamps)
+    os.utime(path, (_MOV_TZ_TEST_WRONG_MTIME, _MOV_TZ_TEST_WRONG_MTIME))
+    return path
+
+
+# Same as above but creation_time=19:52:16Z so corrected window [16:52:16, 16:52:19]
+# overlaps GPS points at 16:52:16 and 16:52:18.
+_MOV_TZ_OVERLAP_TEST_WRONG_MTIME = datetime(2024, 8, 8, 19, 52, 16, tzinfo=UTC).timestamp()
+
+
+@pytest.fixture(scope="module")
+def integration_test_mov_tz_overlap():
+    """MOV with shifted creation_time that overlaps GPS points after tz-correction."""
+    from tests.fixtures.data import TEST_MOV_TZ_OVERLAP_TEST_PATH
+
+    path = Path(TEST_MOV_TZ_OVERLAP_TEST_PATH)
+    if not path.exists():
+        pytest.skip(f"Integration test MOV tz-overlap not found: {path}")
+    os.utime(path, (_MOV_TZ_OVERLAP_TEST_WRONG_MTIME, _MOV_TZ_OVERLAP_TEST_WRONG_MTIME))
+    return path

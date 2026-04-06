@@ -39,10 +39,13 @@ class OverlapInfo(BaseModel):
 class TimeSyncAnalyzeResponse(BaseModel):
     video_start: str = Field(description="ISO UTC datetime string")
     video_duration_sec: float
-    source: str = Field(description="'media-created' or 'file-created'")
+    source: str = Field(description="'media-created', 'file-created', or 'tz-corrected'")
     overlap: OverlapInfo | None = None
     gps_start: str | None = Field(default=None, description="GPS track start time, ISO UTC")
     gps_end: str | None = Field(default=None, description="GPS track end time, ISO UTC")
+    tz_correction_hours: float | None = Field(
+        default=None, description="Timezone correction applied (hours), e.g. +7.0 or -5.75"
+    )
 
 
 def _get_video_duration(file_path: Path) -> float:
@@ -202,11 +205,19 @@ def _analyze_sync(
 
     # Extract creation time
     creation_time = _extract_creation_time(video_path)
+    tz_correction_hours = None
     if creation_time is not None:
         # Cross-validate against GPS data to detect cameras with local-time creation_time
-        creation_time = _validate_creation_time(video_path, creation_time, video_duration_sec, gpx_path)
-        video_start = creation_time
-        source = "media-created"
+        result = _validate_creation_time(video_path, creation_time, video_duration_sec, gpx_path)
+        video_start = result.time
+
+        if result.correction_type == "tz-corrected":
+            source = "tz-corrected"
+            tz_correction_hours = result.tz_correction_hours
+        elif result.correction_type == "mtime":
+            source = "file-created"
+        else:
+            source = "media-created"
     else:
         from gopro_overlay.ffmpeg_gopro import filestat
 
@@ -236,4 +247,5 @@ def _analyze_sync(
         overlap=overlap,
         gps_start=gps_start_iso,
         gps_end=gps_end_iso,
+        tz_correction_hours=tz_correction_hours,
     )

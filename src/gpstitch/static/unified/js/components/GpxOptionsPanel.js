@@ -213,16 +213,25 @@ class GpxOptionsPanel {
         const endDate = new Date(startDate.getTime() + info.video_duration_sec * 1000);
         const startFmt = this._formatDateTime(startDate);
         const endFmt = this._formatTime(endDate);
-        const sourceLabel = info.source === 'media-created' ? 'video metadata' : 'file date, may be inaccurate';
 
-        if (info.overlap) {
+        if (info.source === 'tz-corrected') {
+            const hours = info.tz_correction_hours ?? 0;
+            const sign = hours >= 0 ? '+' : '';
+            let text = `[!] ${startFmt}-${endFmt} | Timezone corrected by ${sign}${hours}h`;
+            if (info.overlap) {
+                const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
+                text += ` | ${info.overlap.points} pts | ${speed} km/h`;
+            }
+            this.timeSyncHint.textContent = text;
+            this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
+        } else if (info.overlap) {
             const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
             this.timeSyncHint.textContent = `${startFmt}-${endFmt} | ${info.overlap.points} pts | ${speed} km/h`;
             this.timeSyncHint.className = info.source === 'file-created'
                 ? 'time-sync-hint time-sync-warning'
                 : 'time-sync-hint';
         } else if (info.source === 'file-created') {
-            this.timeSyncHint.textContent = `[!] ${startFmt} (${sourceLabel})`;
+            this.timeSyncHint.textContent = `[!] ${startFmt} (file date, may be inaccurate)`;
             this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
         } else {
             this.timeSyncHint.textContent = `[!] ${startFmt}-${endFmt} | No GPS data found`;

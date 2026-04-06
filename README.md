@@ -172,9 +172,12 @@ When using a non-GoPro video with an external GPS file (GPX/FIT), the video and 
 
 Automatically aligns the video to the GPS track using the video's embedded `creation_time` metadata (set by the camera when recording starts). GPStitch extracts this timestamp via ffprobe and cross-validates it against the GPS track's time range.
 
-**Timezone auto-detection:** Some cameras (e.g., Insta360, certain DJI models) incorrectly write local time into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking whether the video time window overlaps with the GPS data — if it doesn't, it automatically tries alternative timestamps (`file created` date) and selects the one that best matches the GPS track.
+**Timezone auto-detection:** Some cameras (e.g., Insta360 Go 3S, certain DJI models) incorrectly write local time into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking whether the video time window overlaps with the GPS data. If it doesn't, GPStitch:
 
-If no valid `creation_time` is found in the video metadata, GPStitch falls back to the file's creation date (less reliable, shown as a warning in the UI).
+1. Tries the file's creation date (`mtime`) as an alternative timestamp
+2. If `mtime` also doesn't overlap, attempts **automatic timezone correction** — computes the offset between the video and GPS midpoints, rounds to the nearest 15-minute timezone boundary (supporting offsets like UTC+5:45), and verifies the corrected time overlaps the GPS track. A warning is shown in the UI when this correction is applied (e.g., "Timezone corrected by -7h").
+
+If no valid alignment can be found, GPStitch falls back to the original `creation_time` (shown as a warning in the UI). If no `creation_time` is found in the video metadata, GPStitch uses the file's creation date (less reliable, shown as a warning).
 
 ### Use GPX Timestamps
 

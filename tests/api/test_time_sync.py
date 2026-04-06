@@ -35,11 +35,13 @@ class TestTimeSyncAnalyzeEndpoint:
             "extract_creation_time": MagicMock(return_value=None),
             "get_video_duration": MagicMock(return_value=60.0),
             "calculate_overlap": MagicMock(return_value=None),
+            "get_gps_time_range": MagicMock(return_value=None),
         }
         monkeypatch.setattr(mod, "file_manager", mocks["file_manager"])
         monkeypatch.setattr(mod, "_extract_creation_time", mocks["extract_creation_time"])
         monkeypatch.setattr(mod, "_get_video_duration", mocks["get_video_duration"])
         monkeypatch.setattr(mod, "_calculate_overlap", mocks["calculate_overlap"])
+        monkeypatch.setattr(mod, "_get_gps_time_range", mocks["get_gps_time_range"])
         return mocks
 
     @pytest.fixture

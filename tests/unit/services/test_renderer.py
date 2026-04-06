@@ -7,7 +7,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from PIL import Image
 
-from gpstitch.services.renderer import _fit_video_to_canvas, _resolve_time_alignment, _validate_creation_time
+from gpstitch.services.renderer import (
+    _fit_video_to_canvas,
+    _get_gps_time_range,
+    _resolve_time_alignment,
+    _validate_creation_time,
+)
 
 
 class TestFitVideoToCanvas:
@@ -523,6 +528,22 @@ class TestResolveTimeAlignment:
         assert start_date == creation_time
 
 
+class TestGetGpsTimeRange:
+    """Tests for _get_gps_time_range — GPS file parsing with error handling."""
+
+    def test_system_exit_returns_none(self):
+        """SystemExit from gopro-overlay (e.g. sys.exit on bad data) is caught, returns None."""
+        with patch("gopro_overlay.loading.load_external", side_effect=SystemExit(1)):
+            result = _get_gps_time_range(Path("/tmp/track.fit"))
+        assert result is None
+
+    def test_exception_returns_none(self):
+        """Generic exceptions during GPS parsing return None."""
+        with patch("gopro_overlay.loading.load_external", side_effect=ValueError("bad data")):
+            result = _get_gps_time_range(Path("/tmp/track.fit"))
+        assert result is None
+
+
 class TestValidateCreationTime:
     """Tests for _validate_creation_time — cross-validation of creation_time against GPS data."""
 
@@ -545,7 +566,8 @@ class TestValidateCreationTime:
             result = _validate_creation_time(
                 Path("/tmp/video.mp4"), correct_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
             )
-        assert result == correct_ct
+        assert result.time == correct_ct
+        assert result.correction_type is None
 
     def test_creation_time_wrong_mtime_correct_insta360(self):
         """When creation_time doesn't overlap but mtime does (Insta360), use mtime."""
@@ -558,7 +580,8 @@ class TestValidateCreationTime:
                 Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.fit")
             )
         expected = datetime.datetime.fromtimestamp(self.CORRECT_MTIME_TS, tz=datetime.UTC)
-        assert result == expected
+        assert result.time == expected
+        assert result.correction_type == "mtime"
 
     def test_mtime_as_recording_end(self):
         """When mtime is at the end of GPS range, only end-overlap triggers, adjust to start."""
@@ -582,10 +605,12 @@ class TestValidateCreationTime:
         expected = datetime.datetime.fromtimestamp(mtime_end, tz=datetime.UTC) - datetime.timedelta(
             seconds=video_duration
         )
-        assert result == expected
+        assert result.time == expected
+        assert result.correction_type == "mtime"
 
-    def test_neither_overlaps_fallback_to_creation_time(self):
-        """When neither creation_time nor mtime overlaps, keep creation_time."""
+    def test_neither_overlaps_no_valid_offset_fallback_to_creation_time(self):
+        """When neither overlaps and no valid tz offset found, keep creation_time."""
+        # creation_time and GPS are months apart — no timezone offset can fix this
         wrong_ct = datetime.datetime(2026, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
         wrong_mtime = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC).timestamp()
         with (
@@ -596,19 +621,22 @@ class TestValidateCreationTime:
             result = _validate_creation_time(
                 Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
             )
-        assert result == wrong_ct
+        assert result.time == wrong_ct
+        assert result.correction_type is None
 
     def test_no_gps_path_returns_creation_time(self):
         """Without GPS file, return creation_time unchanged."""
         result = _validate_creation_time(Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, None)
-        assert result == self.WRONG_CREATION_TIME
+        assert result.time == self.WRONG_CREATION_TIME
+        assert result.correction_type is None
 
     def test_srt_file_skipped(self):
         """SRT files are not used for validation (they have naive local timestamps)."""
         result = _validate_creation_time(
             Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.srt")
         )
-        assert result == self.WRONG_CREATION_TIME
+        assert result.time == self.WRONG_CREATION_TIME
+        assert result.correction_type is None
 
     def test_gps_range_extraction_fails_returns_creation_time(self):
         """If GPS time range extraction fails, return creation_time unchanged."""
@@ -616,7 +644,8 @@ class TestValidateCreationTime:
             result = _validate_creation_time(
                 Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.fit")
             )
-        assert result == self.WRONG_CREATION_TIME
+        assert result.time == self.WRONG_CREATION_TIME
+        assert result.correction_type is None
 
     def test_zero_duration_skips_validation(self):
         """When video_duration_sec=0 (ffprobe failed), skip validation entirely."""
@@ -631,7 +660,8 @@ class TestValidateCreationTime:
                 Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, 0.0, Path("/tmp/track.fit")
             )
         # Should return creation_time unchanged — no GPS range lookup should happen
-        assert result == self.WRONG_CREATION_TIME
+        assert result.time == self.WRONG_CREATION_TIME
+        assert result.correction_type is None
         mock_gps.assert_not_called()
         mock_stat.assert_not_called()
 
@@ -641,7 +671,8 @@ class TestValidateCreationTime:
             result = _validate_creation_time(
                 Path("/tmp/video.mp4"), self.WRONG_CREATION_TIME, self.VIDEO_DURATION, Path("/tmp/track.gpx")
             )
-        assert result == self.WRONG_CREATION_TIME
+        assert result.time == self.WRONG_CREATION_TIME
+        assert result.correction_type is None
 
     def test_creation_time_at_gps_boundary(self):
         """creation_time exactly at GPS range start, duration extends into range → overlaps."""
@@ -651,7 +682,8 @@ class TestValidateCreationTime:
             result = _validate_creation_time(
                 Path("/tmp/video.mp4"), ct_at_boundary, self.VIDEO_DURATION, Path("/tmp/track.fit")
             )
-        assert result == ct_at_boundary
+        assert result.time == ct_at_boundary
+        assert result.correction_type is None
 
     def test_both_mtime_overlaps_uses_start(self):
         """mtime in middle of GPS range — both start and end overlap → mtime used as recording start."""
@@ -672,7 +704,8 @@ class TestValidateCreationTime:
             )
         # Both overlaps true → mtime used as start (no subtraction)
         expected = datetime.datetime.fromtimestamp(mtime_mid, tz=datetime.UTC)
-        assert result == expected
+        assert result.time == expected
+        assert result.correction_type == "mtime"
 
     def test_non_whole_hour_timezone_offset(self):
         """creation_time off by 5.5 hours (UTC+5:30 India), should fail overlap, mtime should win."""
@@ -689,7 +722,8 @@ class TestValidateCreationTime:
                 Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
             )
         expected = datetime.datetime.fromtimestamp(correct_mtime, tz=datetime.UTC)
-        assert result == expected
+        assert result.time == expected
+        assert result.correction_type == "mtime"
 
     def test_video_starts_before_gps_data(self):
         """creation_time before GPS range start, but duration extends into range → should overlap."""
@@ -699,7 +733,403 @@ class TestValidateCreationTime:
         ct_before = datetime.datetime(2026, 2, 6, 18, 5, 0, tzinfo=datetime.UTC)
         with patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE):
             result = _validate_creation_time(Path("/tmp/video.mp4"), ct_before, 600.0, Path("/tmp/track.fit"))
-        assert result == ct_before
+        assert result.time == ct_before
+        assert result.correction_type is None
+
+    # --- Timezone auto-correction tests ---
+
+    def test_tz_correction_insta360_local_as_utc(self):
+        """Insta360 Go 3S: creation_time is local (UTC+7) stored as UTC, GPS is real UTC.
+
+        Camera records at 02:06:38 local (UTC+7) = 19:06:38 UTC previous day.
+        creation_time = 2026-02-07T02:06:38Z (wrong — local time written as UTC).
+        GPS range tight around actual recording: 19:06:00 -> 19:07:30 UTC.
+        Expected offset: -7h, corrected to 19:06:38 UTC.
+        """
+        # Use tight GPS range so midpoint heuristic is reliable
+        tight_gps = (
+            datetime.datetime(2026, 2, 6, 19, 6, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 19, 7, 30, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 7, 2, 6, 38, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()  # mtime is also wrong (local time)
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=tight_gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        expected = datetime.datetime(2026, 2, 6, 19, 6, 38, tzinfo=datetime.UTC)
+        assert result.time == expected
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -7.0
+
+    def test_tz_correction_wrong_gps_file_no_correction(self):
+        """Wrong GPS file — offset too large (> 14h) or shifted doesn't overlap → no correction."""
+        # GPS range is in Feb, creation_time in June — offset would be months, not hours
+        wrong_ct = datetime.datetime(2026, 6, 15, 12, 0, 0, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        assert result.time == wrong_ct
+        assert result.correction_type is None
+
+    def test_tz_correction_non_whole_hour_utc_plus_545(self):
+        """Non-whole-hour timezone: UTC+5:45 (Nepal). Should detect 5h45m offset."""
+        # Tight GPS range around actual recording: 19:06:00 -> 19:07:30 UTC
+        # Real recording at 19:06:38 UTC, but camera stored local 00:51:38+05:45 = 00:51:38Z next day
+        # Offset needed: -5h45m = -20700s
+        tight_gps = (
+            datetime.datetime(2026, 2, 6, 19, 6, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 19, 7, 30, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 7, 0, 51, 38, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=tight_gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        expected = datetime.datetime(2026, 2, 6, 19, 6, 38, tzinfo=datetime.UTC)
+        assert result.time == expected
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -5.75
+
+    def test_tz_correction_non_whole_hour_utc_plus_545_long_clip(self):
+        """Long clip (3h) from UTC+5:45 camera must not be rejected as ambiguous.
+
+        Regression test: with min_gap_seconds=1800 the neighboring UTC+5:30 offset
+        produced 9900s overlap vs 10800s for the correct UTC+5:45 — a gap of only
+        900s which was less than 1800, causing false ambiguity. With the corrected
+        min_gap_seconds=450 the 900s gap is above threshold.
+        """
+        # 3-hour GPS range: 10:00-13:00 UTC
+        gps_range = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 13, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        video_duration = 10800.0  # 3 hours
+        # Camera at UTC+5:45 stores local 15:45 as UTC
+        wrong_ct = datetime.datetime(2026, 2, 6, 15, 45, 0, tzinfo=datetime.UTC)
+        # mtime must not overlap GPS in either direction (as start or end)
+        # 17:00 - 3h = 14:00 > 13:00 → no overlap as end either
+        wrong_mtime = datetime.datetime(2026, 2, 6, 17, 0, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps_range),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, video_duration, Path("/tmp/track.fit"))
+        expected = datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC)
+        assert result.time == expected
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -5.75
+
+    def test_tz_correction_offset_at_14h_boundary(self):
+        """Offset at -14h (camera at UTC+14, e.g. Line Islands).
+
+        A camera at UTC+14 writes local time 14h ahead of UTC into creation_time.
+        The correction must be -14h to recover true UTC.
+        """
+        # Tight GPS range around actual recording: 05:06:00 -> 05:07:30 UTC
+        # GPS midpoint ≈ 05:06:45
+        # Camera at UTC+14 writes: 05:06:38 + 14h = 19:06:38 as "UTC"
+        # ct_mid = 19:06:38 + 25s = 19:07:03
+        # diff = gps_mid - ct_mid ≈ -14h (-50418s)
+        tight_gps = (
+            datetime.datetime(2026, 2, 6, 5, 6, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 5, 7, 30, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 19, 6, 38, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=tight_gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        expected = datetime.datetime(2026, 2, 6, 5, 6, 38, tzinfo=datetime.UTC)
+        assert result.time == expected
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -14.0
+
+    def test_tz_correction_short_video_long_gps_track_refused(self):
+        """Short video (30s) with a long GPS track (8h) — ambiguous, correction refused.
+
+        When GPS track is much longer than the video, the midpoint heuristic
+        can't reliably determine the timezone offset (the video could be
+        anywhere in the track). The code refuses correction to avoid silently
+        applying a wrong offset.
+        """
+        # Long GPS track: 10:00:00 -> 18:00:00 UTC (8 hours)
+        long_gps = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 18, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 19, 0, 0, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=long_gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 30.0, Path("/tmp/track.fit"))
+        # Ambiguous: max_midpoint_error = (28800-30)/2 ≈ 14385s >> 450s
+        assert result.time == wrong_ct
+        assert result.correction_type is None
+
+    def test_tz_correction_long_video_short_gps_refused(self):
+        """Long video (60 min) with short GPS snippet (1 min) — ambiguous, correction refused.
+
+        When the video is much longer than the GPS track, the GPS midpoint
+        is far from the video midpoint even with the correct timezone offset,
+        making the midpoint heuristic unreliable.
+        """
+        # Short GPS snippet: 10:59:00 -> 11:00:00 UTC (1 minute)
+        short_gps = (
+            datetime.datetime(2026, 2, 6, 10, 59, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 11, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        # creation_time = 18:00:00 UTC (wrong — local time stored as UTC)
+        # True start would be 10:00:00 UTC (offset = -8h), but midpoint
+        # comparison can't determine this reliably.
+        wrong_ct = datetime.datetime(2026, 2, 6, 18, 0, 0, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=short_gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 3600.0, Path("/tmp/track.fit"))
+        # Ambiguous: max_midpoint_error = abs(60-3600)/2 = 1770s >> 450s
+        assert result.time == wrong_ct
+        assert result.correction_type is None
+
+    def test_tz_correction_mtime_wins_over_tz_correction(self):
+        """When mtime overlaps GPS, mtime is used — tz correction is not reached."""
+        # This verifies the existing Insta360 fix (mtime correct) still takes priority
+        wrong_ct = self.WRONG_CREATION_TIME  # 11:34:47 UTC (local PST stored as UTC)
+        correct_mtime = self.CORRECT_MTIME_TS  # 19:34:47 UTC (correct)
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = correct_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        # mtime overlaps → used directly, tz correction code not reached
+        expected = datetime.datetime.fromtimestamp(correct_mtime, tz=datetime.UTC)
+        assert result.time == expected
+        assert result.correction_type == "mtime"
+
+    def test_tz_correction_rounding_error_too_large(self):
+        """When diff doesn't align to a 15-min boundary (rounding error >= 5 min), no correction."""
+        # GPS range: 18:10:23 -> 20:02:53 UTC, mid ≈ 19:06:38
+        # creation_time chosen so diff is ~7h 8min — not near any 15-min boundary
+        # diff = 7h 8min = 25680s, quarters = round(25680/900) = round(28.53) = 29
+        # offset = 29*900 = 26100s, rounding_error = |25680 - 26100| = 420s > 300s → reject
+        wrong_ct = datetime.datetime(2026, 2, 6, 11, 58, 58, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=self.GPS_RANGE),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        assert result.time == wrong_ct
+        assert result.correction_type is None
+
+    def test_tz_correction_equal_duration_partial_overlap_refused(self):
+        """Equal-duration GPS & video with partial overlap — ambiguous, correction refused.
+
+        GPS 10:00-11:00 UTC and a real 1-hour clip starting at 10:30 UTC.
+        Camera writes local time as UTC (UTC-8), so creation_time=18:30Z.
+        The midpoint heuristic computes -8.5h which isn't a real timezone —
+        should refuse rather than silently apply a wrong 30-minute shift.
+        """
+        gps = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 11, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 18, 30, 0, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 3600.0, Path("/tmp/track.fit"))
+        # -8.5h (UTC-8:30) is not a real timezone → correction refused
+        assert result.time == wrong_ct
+        assert result.correction_type is None
+
+    def test_tz_correction_near_fractional_tz_picks_best_overlap(self):
+        """Midpoint heuristic picks -6h when real timezone is UTC+5:30.
+
+        GPS 10:00-11:00 UTC and a real 1-hour clip starting at 10:30 UTC.
+        Camera at UTC+5:30 writes local time as UTC, so creation_time=16:00Z.
+        Midpoint heuristic computes -6h (UTC+6); the real -5.5h (UTC+5:30)
+        only produces 50% overlap vs 100% for -6h, so the ambiguity check
+        does not trigger.  The correction is off by 30 minutes — an accepted
+        tradeoff to avoid blocking legitimate corrections for all users in
+        whole-hour timezones near fractional-offset regions.
+        """
+        gps = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 11, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        # Camera at UTC+5:30, writes 10:30+5:30 = 16:00 as UTC
+        wrong_ct = datetime.datetime(2026, 2, 6, 16, 0, 0, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 3600.0, Path("/tmp/track.fit"))
+        # Midpoint picks -6h (100% overlap) over -5.5h (50% overlap)
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -6.0
+
+    def test_tz_correction_whole_hour_tz_not_blocked_by_adjacent_fractional(self):
+        """Correction at whole-hour timezone succeeds despite nearby fractional tz.
+
+        GPS 10:00-11:00 UTC and a real 1-hour clip at UTC+7 (creation_time=17:00Z).
+        The adjacent UTC+6:30 (Myanmar) offset produces only 50% overlap vs 100%
+        for the computed -7h, so the ambiguity check does not trigger.
+        Regression test for overcorrection that previously blocked all
+        auto-corrections near fractional timezone boundaries.
+        """
+        gps = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 11, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 17, 0, 0, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 3600.0, Path("/tmp/track.fit"))
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -7.0
+        expected = datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC)
+        assert result.time == expected
+
+    def test_tz_correction_long_clip_not_blocked(self):
+        """4-hour clip at UTC+7 with matching GPS track — correction should succeed.
+
+        Adjacent UTC+6:30 produces 87.5% overlap (12600/14400) which is below
+        the 90% threshold, so the ambiguity check does not trigger.
+        """
+        gps = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 14, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 17, 0, 0, tzinfo=datetime.UTC)
+        # mtime well outside GPS range (neither as start nor as end overlaps)
+        wrong_mtime = datetime.datetime(2026, 2, 6, 20, 0, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 14400.0, Path("/tmp/track.fit"))
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -7.0
+
+    def test_tz_correction_5h_clip_not_blocked(self):
+        """5-hour clip at UTC+7 — correction succeeds despite 30-min neighbor.
+
+        This is the boundary case where the ratio-only check (90%) would falsely
+        flag UTC+6:30 as ambiguous: 16200/18000 = 0.9.  The absolute-gap check
+        (1800s difference >= min_gap) prevents the false positive.
+        """
+        gps = (
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 15, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 17, 0, 0, tzinfo=datetime.UTC)
+        # mtime must not overlap GPS in either direction (as start or end)
+        wrong_mtime = datetime.datetime(2026, 2, 6, 22, 0, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 18000.0, Path("/tmp/track.fit"))
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -7.0
+
+    def test_tz_correction_10h_clip_not_blocked(self):
+        """10-hour clip at UTC+12 — correction succeeds for very long clips.
+
+        At 10 hours, the nearest whole-hour neighbor (UTC+11, 1h gap) has overlap
+        gap of 3600s >> min_gap_seconds, so the ambiguity check does not trigger.
+        Uses UTC+12 because smaller offsets still partially overlap GPS for 10h clips.
+        """
+        # Video starts at 00:00 UTC, GPS 00:00-10:00 UTC
+        gps = (
+            datetime.datetime(2026, 2, 6, 0, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 10, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        # Camera at UTC+12 writes 00:00+12 = 12:00 as UTC
+        wrong_ct = datetime.datetime(2026, 2, 6, 12, 0, 0, tzinfo=datetime.UTC)
+        # mtime well outside GPS range
+        wrong_mtime = datetime.datetime(2026, 2, 7, 0, 0, 0, tzinfo=datetime.UTC).timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(Path("/tmp/video.mp4"), wrong_ct, 36000.0, Path("/tmp/track.fit"))
+        assert result.correction_type == "tz-corrected"
+        assert result.tz_correction_hours == -12.0
+
+    def test_tz_correction_sign_aware_rejects_positive_nepal_correction(self):
+        """Correction of +5:45 (quarters=+23) rejected: implies camera in UTC-5:45 which doesn't exist.
+
+        This tests the sign-aware whitelist: UTC+5:45 (Nepal) exists but
+        UTC-5:45 does not. A +5h45m correction implies the camera's timezone
+        was UTC-5:45, which is impossible.
+        """
+        # Need creation_time 5h45m BEHIND GPS midpoint so quarters = +23
+        # GPS: 19:06:00-19:07:30 UTC, midpoint ≈ 19:06:45
+        # creation_time = 19:06:45 - 5:45:00 - 25s = 13:21:20 UTC
+        tight_gps = (
+            datetime.datetime(2026, 2, 6, 19, 6, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 2, 6, 19, 7, 30, tzinfo=datetime.UTC).timestamp(),
+        )
+        wrong_ct = datetime.datetime(2026, 2, 6, 13, 21, 38, tzinfo=datetime.UTC)
+        wrong_mtime = wrong_ct.timestamp()
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=tight_gps),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+        ):
+            mock_stat.return_value.st_mtime = wrong_mtime
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), wrong_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+        # quarters=+23 → camera_tz=-23 (UTC-5:45) doesn't exist → rejected
+        assert result.time == wrong_ct
+        assert result.correction_type is None
 
 
 class TestLayoutCommandGeneration:

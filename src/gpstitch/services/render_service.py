@@ -168,8 +168,8 @@ class RenderService:
                     video_duration_sec = recording.video.duration.millis() / 1000.0
                 except Exception as e:
                     logger.warning("Failed to get video duration for creation_time validation: %s", e)
-                creation_time = _validate_creation_time(Path(video_path), creation_time, video_duration_sec, gps_path)
-                ts = creation_time.timestamp()
+                result = _validate_creation_time(Path(video_path), creation_time, video_duration_sec, gps_path)
+                ts = result.time.timestamp()
             else:
                 from gopro_overlay.ffmpeg_gopro import filestat
 
