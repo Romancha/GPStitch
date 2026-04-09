@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "gpstitch"
-version = "0.13.0"
+version = "0.14.0"
 description = "Web UI for telemetry video overlay configuration and preview"
 readme = "README.md"
 license = { text = "GPL-3.0-or-later" }

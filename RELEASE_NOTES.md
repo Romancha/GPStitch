@@ -1,5 +1,24 @@
 # Release Notes
 
+## Version 0.14.0 — 09 Apr 2026
+
+### 🆕 New
+
+- **Timezone auto-correction for non-GoPro cameras** — Automatically detects and corrects UTC offset when video `creation_time` lacks timezone info, improving time alignment with external GPS data ([#9](https://github.com/Romancha/GPStitch/issues/9))
+- **Independent video and GPS file fields** — Video and GPS files are now decoupled in the upload UI; replacing the video no longer clears the GPS file ([#10](https://github.com/Romancha/GPStitch/issues/10))
+- **Degree unit for orientation metrics** — Pitch, Roll, and Yaw widgets now support a degree (°) unit option ([#14](https://github.com/Romancha/GPStitch/issues/14))
+
+### ✨ Improvements
+
+- **Manual Offset panel refinements** — Seconds are now displayed in the time preview, and Video/GPS labels clarify which timestamp is which ([#11](https://github.com/Romancha/GPStitch/issues/11))
+- **Time Sync mode descriptions** — Each sync mode (Auto, GPX Timestamps, Manual) now shows an inline explanation in the UI ([#11](https://github.com/Romancha/GPStitch/issues/11))
+
+### 🐞 Fixes
+
+- Fixed `creation_time` timezone validation rejecting valid non-GoPro videos when the metadata timestamp had no UTC indicator ([#9](https://github.com/Romancha/GPStitch/issues/9))
+
+---
+
 ## Version 0.13.0 — 29 Mar 2026
 
 ### 🆕 New
