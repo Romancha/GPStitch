@@ -607,7 +607,7 @@ wheels = [
 
 [[package]]
 name = "gpstitch"
-version = "0.15.0"
+version = "0.14.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
