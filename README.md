@@ -172,12 +172,15 @@ When using a non-GoPro video with an external GPS file (GPX/FIT), the video and 
 
 Automatically aligns the video to the GPS track using the video's embedded `creation_time` metadata (set by the camera when recording starts). GPStitch extracts this timestamp via ffprobe and cross-validates it against the GPS track's time range.
 
-**Timezone auto-detection:** Some cameras (e.g., Insta360 Go 3S, certain DJI models) incorrectly write local time into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking whether the video time window overlaps with the GPS data. If it doesn't, GPStitch:
+**Timezone auto-correction:** Some cameras (e.g., Insta360 Go 3S, certain action cameras) incorrectly write local time into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking whether the video time window overlaps with the GPS data. If it doesn't, GPStitch runs a cascade of correction strategies:
 
-1. Tries the file's creation date (`mtime`) as an alternative timestamp
-2. If `mtime` also doesn't overlap, attempts **automatic timezone correction** — computes the offset between the video and GPS midpoints, rounds to the nearest 15-minute timezone boundary (supporting offsets like UTC+5:45), and verifies the corrected time overlaps the GPS track. A warning is shown in the UI when this correction is applied (e.g., "Timezone corrected by -7h").
+1. **System timezone** — applies your machine's local timezone offset (e.g., PDT = UTC-7). Since GPStitch runs locally, this is a strong signal that matches the recording timezone in most workflows.
+2. **Exhaustive search** — tries all valid whole-hour and fractional timezone offsets (e.g., UTC+5:45) and picks the one that produces overlap with the GPS track. If only one candidate matches, it's used automatically.
+3. **File modification time** — as a last resort, checks whether the file's `mtime` happens to overlap the GPS range (without any timezone shifting).
 
-If no valid alignment can be found, GPStitch falls back to the original `creation_time` (shown as a warning in the UI). If no `creation_time` is found in the video metadata, GPStitch uses the file's creation date (less reliable, shown as a warning).
+If none of these strategies produce a valid alignment, GPStitch reports a failure and suggests a manual offset value. The UI shows a "Switch to Manual" button pre-filled with the best-guess offset so you can apply it with one click.
+
+When a correction is applied, an info banner shows which strategy was used (e.g., "Applied +7h from your system timezone"). If no `creation_time` is found in the video metadata, GPStitch uses the file's creation date (less reliable, shown as a warning).
 
 ### Use GPX Timestamps
 

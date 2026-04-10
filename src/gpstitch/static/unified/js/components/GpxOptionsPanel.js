@@ -182,19 +182,49 @@ class GpxOptionsPanel {
         const info = this.state.timeSyncInfo;
         if (!info || !this.manualOffsetInfo) return;
 
+        // Clear previous content
+        this.manualOffsetInfo.textContent = '';
+
         const offset = parseInt(this.offsetInput.value) || 0;
         if (info.video_start) {
-            // info.video_start already has offset applied, subtract to get base time
             const adjustedDate = new Date(info.video_start);
-            const baseDate = new Date(adjustedDate.getTime() - offset * 1000);
-            const baseFmt = this._formatDateTime(baseDate);
-            const resultFmt = this._formatDateTime(adjustedDate);
-            let text = `Video: ${baseFmt} → ${resultFmt}`;
+            // video_start is already post-correction (system-tz, exhaustive, etc.)
+            // Undo the TZ correction to derive the actual original creation_time
+            const tzCorrectionMs = (info.tz_correction_hours || 0) * 3600 * 1000;
+            const baseDate = new Date(adjustedDate.getTime() - tzCorrectionMs - offset * 1000);
+
+            const addRow = (label, value) => {
+                const row = document.createElement('div');
+                row.className = 'manual-offset-row-info';
+                const labelSpan = document.createElement('span');
+                labelSpan.className = 'manual-offset-label';
+                labelSpan.textContent = label;
+                const valueSpan = document.createElement('span');
+                valueSpan.className = 'manual-offset-value';
+                valueSpan.textContent = value;
+                row.appendChild(labelSpan);
+                row.appendChild(valueSpan);
+                this.manualOffsetInfo.appendChild(row);
+            };
+
+            // Use source-specific label: for mtime/file-created, baseDate is NOT the
+            // original creation_time — it's the file modification/creation time.
+            const baseLabel = info.source === 'mtime' ? 'File-derived start:'
+                : info.source === 'file-created' ? 'File creation time:'
+                : 'Original creation_time:';
+            addRow(baseLabel, this._formatDateTime(baseDate));
+            addRow('Corrected video start:', this._formatDateTime(adjustedDate));
+
             if (info.gps_start && info.gps_end) {
-                const gpsFmt = `${this._formatDateTime(new Date(info.gps_start))}-${this._formatTime(new Date(info.gps_end))}`;
-                text += `\nGPS: ${gpsFmt}`;
+                const gpsStartFmt = this._formatDateTime(new Date(info.gps_start));
+                const gpsEndFmt = this._formatTime(new Date(info.gps_end));
+                addRow('GPS range:', `${gpsStartFmt} — ${gpsEndFmt}`);
             }
-            this.manualOffsetInfo.textContent = text;
+
+            if (info.overlap && info.overlap.points > 0) {
+                const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
+                addRow('Overlap:', `${info.overlap.points} pts | ${speed} km/h`);
+            }
         }
     }
 
@@ -209,37 +239,127 @@ class GpxOptionsPanel {
         }
 
         this.timeSyncHint.style.display = 'block';
+        // Clear previous content (removes old text nodes and event listeners)
+        this.timeSyncHint.textContent = '';
+
         const startDate = new Date(info.video_start);
         const endDate = new Date(startDate.getTime() + info.video_duration_sec * 1000);
         const startFmt = this._formatDateTime(startDate);
         const endFmt = this._formatTime(endDate);
 
-        if (info.source === 'tz-corrected') {
-            const hours = info.tz_correction_hours ?? 0;
-            const sign = hours >= 0 ? '+' : '';
-            let text = `[!] ${startFmt}-${endFmt} | Timezone corrected by ${sign}${hours}h`;
-            if (info.overlap) {
-                const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
-                text += ` | ${info.overlap.points} pts | ${speed} km/h`;
+        switch (info.source) {
+            case 'system-tz': {
+                const hours = info.tz_correction_hours ?? 0;
+                const sign = hours >= 0 ? '+' : '';
+                let text = `[\u2139] Applied ${sign}${hours}h from your system timezone`;
+                if (info.overlap) {
+                    const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
+                    text += ` | ${info.overlap.points} pts | ${speed} km/h`;
+                }
+                const mainSpan = document.createElement('span');
+                mainSpan.textContent = text;
+                this.timeSyncHint.appendChild(mainSpan);
+                const subtitle = document.createElement('div');
+                subtitle.className = 'time-sync-subtitle';
+                subtitle.textContent = 'Wrong? \u2192 Use Manual Offset';
+                this.timeSyncHint.appendChild(subtitle);
+                this.timeSyncHint.className = 'time-sync-hint time-sync-info';
+                break;
             }
-            this.timeSyncHint.textContent = text;
-            this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
-        } else if (info.overlap) {
-            const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
-            this.timeSyncHint.textContent = `${startFmt}-${endFmt} | ${info.overlap.points} pts | ${speed} km/h`;
-            this.timeSyncHint.className = info.source === 'file-created'
-                ? 'time-sync-hint time-sync-warning'
-                : 'time-sync-hint';
-        } else if (info.source === 'file-created') {
-            this.timeSyncHint.textContent = `[!] ${startFmt} (file date, may be inaccurate)`;
-            this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
-        } else {
-            this.timeSyncHint.textContent = `[!] ${startFmt}-${endFmt} | No GPS data found`;
-            this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
+
+            case 'exhaustive': {
+                const hours = info.tz_correction_hours ?? 0;
+                const sign = hours >= 0 ? '+' : '';
+                let text = `[!] Timezone auto-detected: ${sign}${hours}h (from GPS overlap)`;
+                if (info.overlap) {
+                    const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
+                    text += ` | ${info.overlap.points} pts | ${speed} km/h`;
+                }
+                const mainSpan = document.createElement('span');
+                mainSpan.textContent = text;
+                this.timeSyncHint.appendChild(mainSpan);
+                const subtitle = document.createElement('div');
+                subtitle.className = 'time-sync-subtitle';
+                subtitle.textContent = 'Verify this looks right';
+                this.timeSyncHint.appendChild(subtitle);
+                this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
+                break;
+            }
+
+            case 'mtime': {
+                this.timeSyncHint.textContent = `[!] ${startFmt}-${endFmt} (using file date)`;
+                this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
+                break;
+            }
+
+            case 'failed': {
+                const ctFmt = startFmt;
+                let gpsInfo = '';
+                if (info.gps_start && info.gps_end) {
+                    const gpsStartFmt = this._formatDateTime(new Date(info.gps_start));
+                    const gpsEndFmt = this._formatTime(new Date(info.gps_end));
+                    gpsInfo = ` | GPS: ${gpsStartFmt}-${gpsEndFmt}`;
+                }
+                const mainSpan = document.createElement('span');
+                mainSpan.textContent = `[\u26A0] Couldn't auto-align time | Video: ${ctFmt}${gpsInfo}`;
+                this.timeSyncHint.appendChild(mainSpan);
+
+                if (info.suggested_manual_offset_seconds != null) {
+                    this.timeSyncHint.appendChild(
+                        this._renderSwitchToManualButton(info.suggested_manual_offset_seconds)
+                    );
+                }
+                this.timeSyncHint.className = 'time-sync-hint time-sync-error';
+                break;
+            }
+
+            case 'file-created': {
+                if (info.overlap) {
+                    const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
+                    this.timeSyncHint.textContent = `[!] ${startFmt}-${endFmt} (file date) | ${info.overlap.points} pts | ${speed} km/h`;
+                } else {
+                    this.timeSyncHint.textContent = `[!] ${startFmt} (file date, may be inaccurate)`;
+                }
+                this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
+                break;
+            }
+
+            case 'media-created':
+            default: {
+                if (info.overlap) {
+                    const speed = info.overlap.avg_speed_kph?.toFixed(1) || '0.0';
+                    this.timeSyncHint.textContent = `${startFmt}-${endFmt} | ${info.overlap.points} pts | ${speed} km/h`;
+                    this.timeSyncHint.className = 'time-sync-hint';
+                } else {
+                    this.timeSyncHint.textContent = `[!] ${startFmt}-${endFmt} | No GPS data found`;
+                    this.timeSyncHint.className = 'time-sync-hint time-sync-warning';
+                }
+                break;
+            }
         }
 
         // Update manual offset info too
         this._updateManualOffsetInfo();
+    }
+
+    /**
+     * Create a button that switches to Manual mode with a pre-filled offset
+     */
+    _renderSwitchToManualButton(seconds) {
+        const hours = (seconds / 3600).toFixed(1);
+        const sign = seconds >= 0 ? '+' : '';
+        const btn = document.createElement('button');
+        btn.className = 'time-sync-switch-manual-btn';
+        btn.textContent = `Switch to Manual with ${sign}${hours}h`;
+        btn.addEventListener('click', () => {
+            this.timeAlignmentSelect.value = 'manual';
+            this.state.updateGpxOptions({ videoTimeAlignment: 'manual' });
+            this._updateTimeAlignmentDesc();
+            this._updateManualPanelVisibility();
+            this.offsetInput.value = seconds;
+            this._onOffsetChanged();
+        });
+        return btn;
     }
 
     _formatDateTime(date) {

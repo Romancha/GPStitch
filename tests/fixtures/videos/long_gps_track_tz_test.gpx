@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx creator="Garmin Connect" version="1.1"
+  xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/11.xsd"
+  xmlns:ns3="http://www.garmin.com/xmlschemas/TrackPointExtension/v1"
+  xmlns="http://www.topografix.com/GPX/1/1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ns2="http://www.garmin.com/xmlschemas/GpxExtensions/v3">
+  <metadata>
+    <link href="connect.garmin.com">
+      <text>Garmin Connect</text>
+    </link>
+    <time>2026-04-09T16:37:20.000Z</time>
+  </metadata>
+  <trk>
+    <name>Long GPS Track (TZ Test)</name>
+    <type>cycling</type>
+    <trkseg>
+      <trkpt lat="47.6062" lon="-122.3321">
+        <ele>56.0</ele>
+        <time>2026-04-09T16:37:20.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6065" lon="-122.3318">
+        <ele>56.5</ele>
+        <time>2026-04-09T16:40:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6070" lon="-122.3310">
+        <ele>57.0</ele>
+        <time>2026-04-09T16:45:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6075" lon="-122.3300">
+        <ele>58.0</ele>
+        <time>2026-04-09T16:45:39.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6078" lon="-122.3295">
+        <ele>58.5</ele>
+        <time>2026-04-09T16:46:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6080" lon="-122.3290">
+        <ele>59.0</ele>
+        <time>2026-04-09T16:46:30.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6085" lon="-122.3280">
+        <ele>59.5</ele>
+        <time>2026-04-09T16:47:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6090" lon="-122.3270">
+        <ele>60.0</ele>
+        <time>2026-04-09T16:47:27.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6095" lon="-122.3260">
+        <ele>60.5</ele>
+        <time>2026-04-09T16:50:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6100" lon="-122.3250">
+        <ele>61.0</ele>
+        <time>2026-04-09T17:00:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6110" lon="-122.3230">
+        <ele>62.0</ele>
+        <time>2026-04-09T17:10:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6120" lon="-122.3210">
+        <ele>63.0</ele>
+        <time>2026-04-09T17:20:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6130" lon="-122.3190">
+        <ele>64.0</ele>
+        <time>2026-04-09T17:30:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6140" lon="-122.3170">
+        <ele>65.0</ele>
+        <time>2026-04-09T17:40:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6150" lon="-122.3150">
+        <ele>66.0</ele>
+        <time>2026-04-09T17:50:00.000Z</time>
+      </trkpt>
+      <trkpt lat="47.6155" lon="-122.3140">
+        <ele>66.5</ele>
+        <time>2026-04-09T17:58:15.000Z</time>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

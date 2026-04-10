@@ -1840,6 +1840,54 @@ select {
     color: var(--color-warning, #f59e0b);
 }
 
+.time-sync-hint.time-sync-info {
+    border-left-color: var(--color-accent, #4FC3F7);
+    color: var(--color-text-secondary);
+}
+
+.time-sync-hint.time-sync-error {
+    border-left-color: var(--color-error, #ef476f);
+    border-left-width: 3px;
+    color: var(--color-error, #ef476f);
+}
+
+.time-sync-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-top: var(--space-1);
+}
+
+.time-sync-switch-manual-btn {
+    display: block;
+    width: 100%;
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    font-family: inherit;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.2;
+    text-align: center;
+    color: var(--color-text-primary);
+    background: rgba(239, 71, 111, 0.12);
+    border: 1px solid var(--color-error, #ef476f);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.time-sync-switch-manual-btn:hover {
+    background: rgba(239, 71, 111, 0.22);
+}
+
+.time-sync-switch-manual-btn:active {
+    background: rgba(239, 71, 111, 0.3);
+}
+
+.time-sync-switch-manual-btn:focus-visible {
+    outline: 2px solid var(--color-error, #ef476f);
+    outline-offset: 2px;
+}
+
 /* Manual Offset Panel */
 .manual-offset-panel {
     margin-top: var(--space-2);
@@ -1900,10 +1948,28 @@ select {
 }
 
 .manual-offset-info {
-    margin-top: var(--space-1);
+    margin-top: var(--space-2);
     font-size: var(--font-size-xs);
     color: var(--color-text-muted);
-    white-space: pre-line;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.manual-offset-row-info {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: var(--space-2);
+}
+
+.manual-offset-label {
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+
+.manual-offset-value {
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
 }
 
 .config-section-title {

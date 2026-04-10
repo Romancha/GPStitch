@@ -1,5 +1,28 @@
 # Release Notes
 
+## Version 0.14.1 — 10 Apr 2026
+
+### 🎉 Major Features
+
+**Time Sync Algorithm Rewrite**
+
+Replaced the midpoint-based timezone auto-correction with a robust enumerate-based cascade. The old algorithm failed for the common workflow of short video clips inside long GPS tracks (e.g., a 2-minute Insta360 clip inside a 1-hour Garmin track). The new algorithm reliably handles this scenario. ([#9](https://github.com/Romancha/GPStitch/issues/9))
+
+- **System timezone as primary signal** — GPStitch now uses your machine's local timezone offset as the first correction candidate, which matches the recording timezone in most local workflows
+- **Exhaustive overlap search** — If system timezone doesn't match, GPStitch tries all valid whole-hour and fractional timezone offsets and picks any unique match automatically
+- **Failure with suggested offset** — When auto-correction can't determine the right offset, the UI shows an actionable error with a "Switch to Manual" button pre-filled with the best-guess offset
+
+### ✨ Improvements
+
+- **Transparent correction banners** — Info banner when system timezone was applied, warning banner for exhaustive search results, error banner with one-click Manual fallback when auto fails
+- **Manual Offset panel redesign** — Replaced single-line display with three labeled rows (Original creation_time / Corrected video start / GPS range) for clarity ([#11](https://github.com/Romancha/GPStitch/issues/11))
+
+### 🐞 Fixes
+
+- Fixed timezone auto-correction failing for short video clips inside long GPS tracks — the midpoint-based guard incorrectly rejected valid corrections when video and GPS durations differed significantly ([#9](https://github.com/Romancha/GPStitch/issues/9))
+
+---
+
 ## Version 0.14.0 — 09 Apr 2026
 
 ### 🆕 New

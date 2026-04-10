@@ -39,12 +39,18 @@ class OverlapInfo(BaseModel):
 class TimeSyncAnalyzeResponse(BaseModel):
     video_start: str = Field(description="ISO UTC datetime string")
     video_duration_sec: float
-    source: str = Field(description="'media-created', 'file-created', or 'tz-corrected'")
+    source: str = Field(
+        description="'media-created' | 'system-tz' | 'exhaustive' | 'mtime' | 'file-created' | 'failed'"
+    )
     overlap: OverlapInfo | None = None
     gps_start: str | None = Field(default=None, description="GPS track start time, ISO UTC")
     gps_end: str | None = Field(default=None, description="GPS track end time, ISO UTC")
     tz_correction_hours: float | None = Field(
         default=None, description="Timezone correction applied (hours), e.g. +7.0 or -5.75"
+    )
+    correction_reason: str | None = Field(default=None, description="Human-readable reason for the applied correction")
+    suggested_manual_offset_seconds: int | None = Field(
+        default=None, description="Suggested offset for Manual mode when auto-alignment failed"
     )
 
 
@@ -206,16 +212,29 @@ def _analyze_sync(
     # Extract creation time
     creation_time = _extract_creation_time(video_path)
     tz_correction_hours = None
+    correction_reason = None
+    suggested_manual_offset_seconds = None
     if creation_time is not None:
         # Cross-validate against GPS data to detect cameras with local-time creation_time
         result = _validate_creation_time(video_path, creation_time, video_duration_sec, gpx_path)
         video_start = result.time
 
-        if result.correction_type == "tz-corrected":
-            source = "tz-corrected"
+        if result.correction_type == "system-tz":
+            source = "system-tz"
             tz_correction_hours = result.tz_correction_hours
+            hours = result.tz_correction_hours
+            correction_reason = f"Auto-detected from your system timezone (UTC{hours:+.1f})"
+        elif result.correction_type == "exhaustive":
+            source = "exhaustive"
+            tz_correction_hours = result.tz_correction_hours
+            hours = result.tz_correction_hours
+            correction_reason = f"Auto-detected from GPS overlap search ({hours:+.1f}h)"
         elif result.correction_type == "mtime":
-            source = "file-created"
+            source = "mtime"
+            correction_reason = "Using file modification time (creation_time didn't match)"
+        elif result.suggested_offset_seconds is not None:
+            source = "failed"
+            suggested_manual_offset_seconds = result.suggested_offset_seconds
         else:
             source = "media-created"
     else:
@@ -248,4 +267,6 @@ def _analyze_sync(
         gps_start=gps_start_iso,
         gps_end=gps_end_iso,
         tz_correction_hours=tz_correction_hours,
+        correction_reason=correction_reason,
+        suggested_manual_offset_seconds=suggested_manual_offset_seconds,
     )

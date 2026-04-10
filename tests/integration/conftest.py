@@ -105,6 +105,17 @@ def integration_test_mov_tz_test():
     return path
 
 
+@pytest.fixture(scope="module")
+def integration_test_long_gps_track_tz_test():
+    """Long GPX track (16:37:20Z - 17:58:15Z) for short-video-in-long-track tz tests."""
+    from tests.fixtures.data import TEST_LONG_GPS_TRACK_TZ_TEST_PATH
+
+    path = Path(TEST_LONG_GPS_TRACK_TZ_TEST_PATH)
+    if not path.exists():
+        pytest.skip(f"Long GPS track TZ test fixture not found: {path}")
+    return path
+
+
 # Same as above but creation_time=19:52:16Z so corrected window [16:52:16, 16:52:19]
 # overlaps GPS points at 16:52:16 and 16:52:18.
 _MOV_TZ_OVERLAP_TEST_WRONG_MTIME = datetime(2024, 8, 8, 19, 52, 16, tzinfo=UTC).timestamp()

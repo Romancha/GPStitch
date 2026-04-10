@@ -50,6 +50,7 @@ TEST_DJI_SRT_PATH = str(Path(__file__).parent / "videos" / "DJI_20250723102139_0
 TEST_DJI_ACTION_VIDEO_PATH = str(Path(__file__).parent / "videos" / "DJI_20260315180109_0003_D_5s_fixture.MP4")
 TEST_MOV_TZ_TEST_PATH = str(Path(__file__).parent / "videos" / "IMG_2927_tz_test.MOV")
 TEST_MOV_TZ_OVERLAP_TEST_PATH = str(Path(__file__).parent / "videos" / "IMG_2927_tz_overlap_test.MOV")
+TEST_LONG_GPS_TRACK_TZ_TEST_PATH = str(Path(__file__).parent / "videos" / "long_gps_track_tz_test.gpx")
 
 # Allowed extensions for upload
 ALLOWED_VIDEO_EXTENSIONS = [".mp4", ".MP4", ".mov", ".MOV"]

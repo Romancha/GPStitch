@@ -485,70 +485,57 @@ def _overlap_seconds(shifted_start: float, duration: float, gps_min: float, gps_
     return max(0.0, min(shifted_start + duration, gps_max) - max(shifted_start, gps_min))
 
 
-def _has_ambiguous_competing_offset(
-    ct_ts: float,
-    video_duration_sec: float,
-    gps_min: float,
-    gps_max: float,
-    computed_quarters: int,
-    min_ratio: float = 0.9,
-    min_gap_seconds: float = 450.0,
-) -> bool:
-    """Check if another valid timezone offset produces overlap comparable to computed one.
-
-    Instead of counting any overlap (which over-triggers for longer clips near
-    fractional timezone boundaries), compare each candidate's overlap quality
-    against the computed offset's overlap.  A competitor is considered ambiguous
-    only when BOTH conditions hold:
-    1. Its overlap reaches ``min_ratio`` (default 90 %) of the computed overlap.
-    2. The absolute overlap difference is less than ``min_gap_seconds`` (default
-       450 s = half of 15-min timezone step).
-
-    The absolute-gap check prevents false ambiguity for long clips where the
-    ratio between correct and neighboring timezone overlaps naturally converges
-    toward 1.0.  The smallest timezone step between any two offsets is 900 s
-    (15 min, e.g. UTC+5:30 vs UTC+5:45).  Using half that step (450 s) as the
-    threshold ensures neighboring fractional timezones are never falsely flagged
-    as ambiguous, while still catching genuinely indistinguishable offsets.
-    """
-    computed_correction = computed_quarters * 900
-    computed_shifted = ct_ts + computed_correction
-    computed_overlap = _overlap_seconds(computed_shifted, video_duration_sec, gps_min, gps_max)
-    if computed_overlap <= 0:
-        return False
-
-    threshold = computed_overlap * min_ratio
-
-    computed_camera_q = -computed_quarters
-
-    # Whole-hour offsets: camera_tz in [-48, 56] quarters, step 4
-    for camera_q in range(-48, 57, 4):
-        if camera_q == 0 or camera_q == computed_camera_q:
-            continue
-        correction_sec = -camera_q * 900
-        shifted = ct_ts + correction_sec
-        overlap = _overlap_seconds(shifted, video_duration_sec, gps_min, gps_max)
-        if overlap >= threshold and (computed_overlap - overlap) < min_gap_seconds:
-            return True
-    # Fractional offsets
-    for camera_q in _KNOWN_FRACTIONAL_TZ_QUARTERS:
-        if camera_q == computed_camera_q:
-            continue
-        correction_sec = -camera_q * 900
-        shifted = ct_ts + correction_sec
-        overlap = _overlap_seconds(shifted, video_duration_sec, gps_min, gps_max)
-        if overlap >= threshold and (computed_overlap - overlap) < min_gap_seconds:
-            return True
-    return False
-
-
 @dataclass
 class CorrectionResult:
     """Result from _validate_creation_time with correction metadata."""
 
     time: datetime.datetime
-    correction_type: str | None = None  # None, "mtime", or "tz-corrected"
-    tz_correction_hours: float | None = None  # only set for "tz-corrected"
+    correction_type: str | None = None  # None, "system-tz", "exhaustive", or "mtime"
+    tz_correction_hours: float | None = None  # set for "system-tz" and "exhaustive"
+    suggested_offset_seconds: int | None = None  # only set when correction failed
+
+
+def _get_system_tz_offset() -> datetime.timedelta:
+    """Return the system's current UTC offset (mockable in tests)."""
+    return datetime.datetime.now().astimezone().utcoffset()
+
+
+def _find_overlap_candidates(ct_ts: float, duration: float, gps_min: float, gps_max: float) -> list[int]:
+    """Find all valid TZ offsets (in seconds) where shifted video overlaps GPS range.
+
+    Enumerates whole-hour offsets (UTC-12 to UTC+14) and known fractional offsets.
+    Returns list of correction seconds (positive = shift forward in time).
+    Skips offset=0 (as-is case is checked separately).
+    """
+    candidates = []
+    # Whole-hour: camera_tz in [-48, 56] quarters (step 4)
+    for camera_q in range(-48, 57, 4):
+        if camera_q == 0:
+            continue
+        correction_sec = -camera_q * 900
+        shifted = ct_ts + correction_sec
+        if _overlap_seconds(shifted, duration, gps_min, gps_max) > 0:
+            candidates.append(correction_sec)
+    # Fractional offsets
+    for camera_q in _KNOWN_FRACTIONAL_TZ_QUARTERS:
+        correction_sec = -camera_q * 900
+        shifted = ct_ts + correction_sec
+        if _overlap_seconds(shifted, duration, gps_min, gps_max) > 0:
+            candidates.append(correction_sec)
+    return candidates
+
+
+def _best_guess_offset(ct_ts: float, duration: float, gps_min: float, gps_max: float) -> int:
+    """Compute best-guess offset for Manual mode suggestion.
+
+    Places video midpoint at GPS midpoint, rounded to nearest whole hour.
+    Never used for auto-correction — only populates the Manual mode suggestion.
+    """
+    gps_mid = (gps_min + gps_max) / 2
+    ct_mid = ct_ts + duration / 2
+    diff_sec = gps_mid - ct_mid
+    # Round to nearest whole hour
+    return round(diff_sec / 3600) * 3600
 
 
 def _validate_creation_time(
@@ -592,9 +579,6 @@ def _validate_creation_time(
         return no_correction
 
     if video_duration_sec <= 0:
-        # Without a known duration, overlap checks are unreliable — skip validation.
-        # A long GPS track (8+ hours) would make the overlap nearly always true,
-        # defeating timezone mismatch detection.
         return no_correction
 
     gps_range = _get_gps_time_range(gps_path)
@@ -602,104 +586,100 @@ def _validate_creation_time(
         return no_correction
 
     gps_min, gps_max = gps_range
-
     ct_ts = creation_time.timestamp()
 
-    # Check if creation_time + duration overlaps with GPS range
-    ct_overlaps = ct_ts <= gps_max and (ct_ts + video_duration_sec) >= gps_min
-
-    if ct_overlaps:
+    # Step 1: creation_time as-is overlaps GPS → no correction needed
+    if _overlap_seconds(ct_ts, video_duration_sec, gps_min, gps_max) > 0:
         return no_correction
 
-    # creation_time doesn't overlap — check mtime
+    # Step 2: system timezone correction
+    system_tz = _get_system_tz_offset()
+    system_tz_seconds = int(system_tz.total_seconds())
+    system_shifted = ct_ts + (-system_tz_seconds)  # negate: UTC-7 means +7h correction
+    if _overlap_seconds(system_shifted, video_duration_sec, gps_min, gps_max) > 0:
+        shifted_dt = datetime.datetime.fromtimestamp(system_shifted, tz=datetime.UTC)
+        correction_hours = (-system_tz_seconds) / 3600
+        logger.info(
+            "System timezone correction: creation_time %s shifted by %+.1fh → %s",
+            creation_time.isoformat(),
+            correction_hours,
+            shifted_dt.isoformat(),
+        )
+        return CorrectionResult(
+            time=shifted_dt,
+            correction_type="system-tz",
+            tz_correction_hours=correction_hours,
+        )
+
+    # Step 3: exhaustive search over all valid TZ offsets
+    candidates = _find_overlap_candidates(ct_ts, video_duration_sec, gps_min, gps_max)
+    system_correction_sec = -system_tz_seconds
+
+    if len(candidates) == 1:
+        offset_sec = candidates[0]
+        shifted_ts = ct_ts + offset_sec
+        shifted_dt = datetime.datetime.fromtimestamp(shifted_ts, tz=datetime.UTC)
+        correction_hours = offset_sec / 3600
+        logger.info(
+            "Exhaustive TZ search: creation_time %s shifted by %+.1fh → %s",
+            creation_time.isoformat(),
+            correction_hours,
+            shifted_dt.isoformat(),
+        )
+        return CorrectionResult(
+            time=shifted_dt,
+            correction_type="exhaustive",
+            tz_correction_hours=correction_hours,
+        )
+    elif len(candidates) > 1 and system_correction_sec in candidates:
+        shifted_dt = datetime.datetime.fromtimestamp(system_shifted, tz=datetime.UTC)
+        correction_hours = system_correction_sec / 3600
+        logger.info(
+            "Multiple TZ candidates found, using system timezone: %s shifted by %+.1fh → %s",
+            creation_time.isoformat(),
+            correction_hours,
+            shifted_dt.isoformat(),
+        )
+        return CorrectionResult(
+            time=shifted_dt,
+            correction_type="system-tz",
+            tz_correction_hours=correction_hours,
+        )
+    # len > 1 but system TZ not among them, or len == 0 → fall through
+
+    # Step 4: mtime as-is (last resort, no TZ shifting)
     try:
         mtime_ts = os.stat(file_path).st_mtime
     except OSError:
-        return no_correction
+        mtime_ts = None
 
-    # mtime could be recording start or end, so check both possibilities
-    # As start: [mtime, mtime + duration]
-    mtime_start_overlaps = mtime_ts <= gps_max and (mtime_ts + video_duration_sec) >= gps_min
-    # As end: [mtime - duration, mtime]
-    mtime_end_overlaps = (mtime_ts - video_duration_sec) <= gps_max and mtime_ts >= gps_min
+    if mtime_ts is not None:
+        mtime_start_overlaps = _overlap_seconds(mtime_ts, video_duration_sec, gps_min, gps_max) > 0
+        mtime_end_overlaps = _overlap_seconds(mtime_ts - video_duration_sec, video_duration_sec, gps_min, gps_max) > 0
 
-    if mtime_start_overlaps or mtime_end_overlaps:
-        mtime_dt = datetime.datetime.fromtimestamp(mtime_ts, tz=datetime.UTC)
-        if mtime_end_overlaps and not mtime_start_overlaps:
-            # mtime is recording end — adjust to start
-            mtime_dt = mtime_dt - datetime.timedelta(seconds=video_duration_sec)
-        logger.info(
-            "creation_time %s doesn't overlap GPS range, using file mtime %s instead",
-            creation_time.isoformat(),
-            mtime_dt.isoformat(),
-        )
-        return CorrectionResult(time=mtime_dt, correction_type="mtime")
-
-    # Neither overlaps — attempt timezone auto-correction.
-    # Validate the computed offset against known UTC timezone offsets to avoid
-    # "inventing" non-existent timezones when a same-duration video partially
-    # overlaps the GPS track (e.g. GPS 10:00-11:00 + real video 10:30-11:30
-    # would produce a -8.5h offset — not a real timezone).
-    # Some cameras (e.g. Insta360 Go 3S) write local time as UTC in both
-    # creation_time and mtime. Detect the timezone offset by comparing the
-    # video midpoint to the GPS track midpoint and rounding to the nearest
-    # 15-minute timezone boundary.
-    gps_mid = (gps_min + gps_max) / 2
-    ct_mid = ct_ts + video_duration_sec / 2
-    diff_sec = gps_mid - ct_mid
-
-    # Guard: when the GPS track and video have very different durations,
-    # their midpoints may not align even with the correct timezone offset.
-    # If the maximum estimation error exceeds half a timezone step
-    # (450s = half of 15-min), we could round to the wrong boundary.
-    gps_duration = gps_max - gps_min
-    max_midpoint_error = abs(gps_duration - video_duration_sec) / 2
-
-    quarters = round(diff_sec / 900)  # 900s = 15 min
-    offset_sec = quarters * 900
-    rounding_error = abs(diff_sec - offset_sec)
-
-    if (
-        offset_sec != 0
-        and abs(offset_sec) <= 14 * 3600
-        and _is_valid_tz_offset(quarters)
-        and rounding_error < 300
-        and rounding_error + max_midpoint_error < 450
-    ):
-        shifted_ts = ct_ts + offset_sec
-        shifted_overlaps = shifted_ts <= gps_max and (shifted_ts + video_duration_sec) >= gps_min
-        if shifted_overlaps:
-            # Ambiguity check: verify no other valid timezone offset produces
-            # overlap comparable (≥90%) to the computed offset's overlap.
-            if _has_ambiguous_competing_offset(
-                ct_ts,
-                video_duration_sec,
-                gps_min,
-                gps_max,
-                quarters,
-            ):
-                logger.info(
-                    "Timezone auto-correction refused: another valid timezone "
-                    "offset produces comparable overlap (ambiguous)",
-                )
-                return no_correction
-
-            shifted_dt = datetime.datetime.fromtimestamp(shifted_ts, tz=datetime.UTC)
-            offset_hours = offset_sec / 3600
+        if mtime_start_overlaps or mtime_end_overlaps:
+            mtime_dt = datetime.datetime.fromtimestamp(mtime_ts, tz=datetime.UTC)
+            if mtime_end_overlaps and not mtime_start_overlaps:
+                mtime_dt = mtime_dt - datetime.timedelta(seconds=video_duration_sec)
             logger.warning(
-                "Timezone auto-correction: creation_time %s shifted by %+.2fh → %s",
+                "Using file mtime as last resort: creation_time %s → mtime %s",
                 creation_time.isoformat(),
-                offset_hours,
-                shifted_dt.isoformat(),
+                mtime_dt.isoformat(),
             )
-            return CorrectionResult(
-                time=shifted_dt,
-                correction_type="tz-corrected",
-                tz_correction_hours=offset_hours,
-            )
+            return CorrectionResult(time=mtime_dt, correction_type="mtime")
 
-    # No valid correction found — keep creation_time as fallback
-    return no_correction
+    # Step 5: complete failure — populate best-guess for Manual mode
+    suggested = _best_guess_offset(ct_ts, video_duration_sec, gps_min, gps_max)
+    logger.warning(
+        "Timezone auto-correction failed for %s. Suggested manual offset: %+ds",
+        creation_time.isoformat(),
+        suggested,
+    )
+    return CorrectionResult(
+        time=creation_time,
+        correction_type=None,
+        suggested_offset_seconds=suggested,
+    )
 
 
 def _resolve_time_alignment(
@@ -723,7 +703,7 @@ def _resolve_time_alignment(
     to detect cameras that store local time as UTC (e.g. Insta360).
 
     Returns (start_date, duration, source) where source is
-    "media-created", "tz-corrected", "file-created", or None.
+    "media-created", "system-tz", "exhaustive", "mtime", "file-created", "failed", or None.
     """
     if not video_time_alignment or video_time_alignment == "gpx-timestamps":
         return None, None, None
@@ -736,10 +716,10 @@ def _resolve_time_alignment(
     if creation_time is not None:
         result = _validate_creation_time(file_path, creation_time, duration_sec, gpx_path)
         start_date = result.time
-        if result.correction_type == "tz-corrected":
-            source = "tz-corrected"
-        elif result.correction_type == "mtime":
-            source = "file-created"
+        if result.correction_type is not None:
+            source = result.correction_type  # "system-tz", "exhaustive", or "mtime"
+        elif result.suggested_offset_seconds is not None:
+            source = "failed"
         else:
             source = "media-created"
     else:

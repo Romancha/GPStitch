@@ -238,6 +238,92 @@ class TestTimeSyncAnalyzeEndpoint:
         assert "2024-08-08T16:59:00" in data["video_start"]
 
 
+class TestTimeSyncNewResponseFields:
+    """Tests for new response fields: correction_reason, suggested_manual_offset_seconds."""
+
+    @pytest.fixture
+    def mock_deps(self, monkeypatch):
+        import gpstitch.api.time_sync as mod
+
+        mocks = {
+            "file_manager": MagicMock(),
+            "extract_creation_time": MagicMock(return_value=None),
+            "get_video_duration": MagicMock(return_value=60.0),
+            "calculate_overlap": MagicMock(return_value=None),
+            "get_gps_time_range": MagicMock(return_value=None),
+        }
+        monkeypatch.setattr(mod, "file_manager", mocks["file_manager"])
+        monkeypatch.setattr(mod, "_extract_creation_time", mocks["extract_creation_time"])
+        monkeypatch.setattr(mod, "_get_video_duration", mocks["get_video_duration"])
+        monkeypatch.setattr(mod, "_calculate_overlap", mocks["calculate_overlap"])
+        monkeypatch.setattr(mod, "_get_gps_time_range", mocks["get_gps_time_range"])
+        return mocks
+
+    @pytest.fixture
+    def video_file(self, temp_dir):
+        video_path = temp_dir / "test.mp4"
+        video_path.write_bytes(b"fake video")
+        return video_path
+
+    def _make_file_info(self, file_path):
+        fi = MagicMock()
+        fi.file_path = str(file_path)
+        fi.role = "primary"
+        fi.file_type = "video"
+        return fi
+
+    async def test_system_tz_response_has_correction_reason(self, async_client, mock_deps, video_file):
+        """System-tz correction response includes correction_reason and source='system-tz'."""
+        from gpstitch.services.renderer import CorrectionResult
+
+        creation = datetime.datetime(2026, 2, 7, 2, 6, 38, tzinfo=datetime.UTC)
+        corrected = CorrectionResult(
+            time=datetime.datetime(2026, 2, 6, 19, 6, 38, tzinfo=datetime.UTC),
+            correction_type="system-tz",
+            tz_correction_hours=-7.0,
+        )
+
+        mock_deps["extract_creation_time"].return_value = creation
+        mock_deps["file_manager"].get_file_by_role.return_value = self._make_file_info(video_file)
+
+        with patch("gpstitch.api.time_sync._validate_creation_time", return_value=corrected):
+            response = await async_client.post(
+                "/api/time-sync/analyze",
+                json={"session_id": "test-session"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["source"] == "system-tz"
+        assert data["correction_reason"] is not None
+        assert data["suggested_manual_offset_seconds"] is None
+
+    async def test_failed_response_has_suggested_offset(self, async_client, mock_deps, video_file):
+        """Failed auto-correction response includes suggested_manual_offset_seconds."""
+        from gpstitch.services.renderer import CorrectionResult
+
+        creation = datetime.datetime(2026, 2, 6, 11, 34, 47, tzinfo=datetime.UTC)
+        failed_result = CorrectionResult(
+            time=creation,
+            correction_type=None,
+            suggested_offset_seconds=25200,
+        )
+
+        mock_deps["extract_creation_time"].return_value = creation
+        mock_deps["file_manager"].get_file_by_role.return_value = self._make_file_info(video_file)
+
+        with patch("gpstitch.api.time_sync._validate_creation_time", return_value=failed_result):
+            response = await async_client.post(
+                "/api/time-sync/analyze",
+                json={"session_id": "test-session"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["source"] == "failed"
+        assert data["suggested_manual_offset_seconds"] == 25200
+
+
 class TestCalculateOverlap:
     """Unit tests for _calculate_overlap function."""
 
