@@ -321,4 +321,6 @@ If you find this project useful, consider supporting its development:
 | 💳 Boosty              | https://boosty.to/romancha                   |
 | ₿ **Bitcoin on-chain** | `bc1qenxrgj6x9un0dpuy5245pgjculj6jqgzht8ned` |
 
+> Prefer scanning a QR code? See the [donation page](https://gpstitch.romancha.org/#support).
+
 Thank you! 🙏
