@@ -123,6 +123,46 @@ def _discover_local_layouts() -> list[str]:
     return sorted(p.stem for p in layouts_dir.glob("*.xml"))
 
 
+def _read_canvas_dims_from_sidecar(layout_xml_path: str | Path) -> tuple[int, int] | None:
+    """Read canvas width/height from the sidecar JSON metadata of a custom template.
+
+    Custom templates saved from the Advanced Mode editor are stored as two files:
+    ``{name}.xml`` (the layout) and ``{name}.json`` (metadata including canvas dimensions
+    the user set in the editor). This helper reads the sidecar to recover those
+    dimensions so the render command can pass ``--overlay-size`` matching the editor
+    canvas — preventing the widget-shift bug where pixel-absolute coordinates designed
+    for one canvas size got rendered onto a different-size overlay.
+
+    Returns (width, height) on success, or None when:
+    - the XML path has no sidecar JSON (raw XML / pre-fix templates)
+    - the JSON is malformed
+    - the JSON doesn't contain ``canvas_width`` and ``canvas_height`` keys
+    - the values are non-integer
+
+    Callers must treat None as "fall back to the default behavior".
+    """
+    import json as _json
+
+    xml_path = Path(layout_xml_path)
+    sidecar_path = xml_path.with_suffix(".json")
+    if not sidecar_path.is_file():
+        return None
+    try:
+        data = _json.loads(sidecar_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        logger.debug("Could not read template sidecar %s: %s", sidecar_path, e)
+        return None
+    try:
+        width = int(data["canvas_width"])
+        height = int(data["canvas_height"])
+    except (KeyError, TypeError, ValueError) as e:
+        logger.debug("Template sidecar %s missing canvas dims: %s", sidecar_path, e)
+        return None
+    if width <= 0 or height <= 0:
+        return None
+    return width, height
+
+
 def _layout_requires_cairo(name: str) -> bool:
     """Check if a layout XML contains cairo widgets."""
     # Check local layouts first
@@ -1567,17 +1607,27 @@ def generate_cli_command(
         ext = get_output_extension_for_profile(ffmpeg_profile)
         output_file = os.path.join(primary_dir, f"{primary_name}_overlay{ext}")
 
-    # Get canvas dimensions from layout for overlay-size
+    # Get canvas dimensions for --overlay-size.
+    # Priority: sidecar JSON of a custom template > named layout lookup > fallback.
+    # The sidecar branch is the fix for the editor-to-render widget shift bug: custom
+    # templates saved from Advanced Mode store the user's canvas dimensions in a JSON
+    # file next to the XML, and those are the dimensions the widget coordinates were
+    # designed for. Without this, the fallback path silently used the first
+    # discovered built-in layout's dimensions (1920x1080), causing widgets to shift.
     canvas_width, canvas_height = None, None
     if primary_type == "video":
-        layout_info = None
-        for info in get_available_layouts():
-            if info.name == layout:
-                layout_info = info
-                break
-        if layout_info is None:
-            layout_info = get_available_layouts()[0]
-        canvas_width, canvas_height = layout_info.width, layout_info.height
+        sidecar_dims = _read_canvas_dims_from_sidecar(layout_xml_path) if layout_xml_path else None
+        if sidecar_dims is not None:
+            canvas_width, canvas_height = sidecar_dims
+        else:
+            layout_info = None
+            for info in get_available_layouts():
+                if info.name == layout:
+                    layout_info = info
+                    break
+            if layout_info is None:
+                layout_info = get_available_layouts()[0]
+            canvas_width, canvas_height = layout_info.width, layout_info.height
 
     # For DJI SRT: always use file-modified time alignment.
     # DJI videos don't have GoPro metadata, so --use-gpx-only is required.

@@ -1608,6 +1608,130 @@ class TestLayoutCommandGeneration:
         assert "--layout xml" in cmd
         assert "--layout-xml /tmp/custom.xml" in cmd
 
+    # --- Canvas dims from sidecar JSON (editor-to-render shift bug) ---
+
+    def _write_template_files(
+        self, tmp_path, xml_name="custom", canvas_width=None, canvas_height=None, json_content=None
+    ):
+        """Create a template XML file and optional sidecar JSON in tmp_path.
+
+        Returns the XML path as a string.
+        """
+        import json as _json
+
+        xml_path = tmp_path / f"{xml_name}.xml"
+        xml_path.write_text("<layout>\n  <!-- test -->\n</layout>\n", encoding="utf-8")
+
+        json_path = tmp_path / f"{xml_name}.json"
+        if json_content is not None:
+            json_path.write_text(json_content, encoding="utf-8")
+        elif canvas_width is not None and canvas_height is not None:
+            meta = {
+                "name": xml_name,
+                "created_at": "2026-04-10T00:00:00",
+                "modified_at": "2026-04-10T00:00:00",
+                "canvas_width": canvas_width,
+                "canvas_height": canvas_height,
+                "description": None,
+            }
+            json_path.write_text(_json.dumps(meta), encoding="utf-8")
+
+        return str(xml_path)
+
+    def test_custom_template_reads_canvas_dims_from_sidecar(self, mock_file_manager, tmp_path):
+        """Custom editor templates store canvas dimensions in a sidecar JSON file.
+
+        When layout_xml_path points at a template with a sidecar JSON, --overlay-size
+        must reflect the editor canvas dimensions, NOT the fallback (first-discovered
+        layout = 1920x1080). This is the fix for the editor-to-render widget shift bug.
+        """
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_video_only(mock_file_manager)
+        xml_path = self._write_template_files(tmp_path, xml_name="my_wide", canvas_width=2720, canvas_height=1530)
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="default-1920x1080",
+            layout_xml_path=xml_path,
+        )
+
+        assert "--overlay-size 2720x1530" in cmd, f"Expected overlay-size from sidecar, got command: {cmd}"
+
+    def test_custom_template_vertical_canvas_from_sidecar(self, mock_file_manager, tmp_path):
+        """Vertical canvas dimensions (1080x1920) must round-trip correctly."""
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_video_only(mock_file_manager)
+        xml_path = self._write_template_files(tmp_path, xml_name="my_vertical", canvas_width=1080, canvas_height=1920)
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="default-1920x1080",
+            layout_xml_path=xml_path,
+        )
+
+        assert "--overlay-size 1080x1920" in cmd
+
+    def test_custom_template_missing_sidecar_falls_back_to_default(self, mock_file_manager, tmp_path):
+        """When no sidecar JSON exists (raw XML file, or old template), fall back to 1920x1080.
+
+        This preserves backward compatibility with pre-fix templates.
+        """
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_video_only(mock_file_manager)
+        # XML only, no sidecar JSON
+        xml_path = self._write_template_files(tmp_path, xml_name="orphan_xml")
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="default-1920x1080",
+            layout_xml_path=xml_path,
+        )
+
+        # Fallback: the first discovered local layout (dji-drone-1920x1080)
+        assert "--overlay-size 1920x1080" in cmd
+
+    def test_custom_template_malformed_sidecar_falls_back_to_default(self, mock_file_manager, tmp_path):
+        """Broken sidecar JSON must not crash — fall back to default dimensions."""
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_video_only(mock_file_manager)
+        xml_path = self._write_template_files(tmp_path, xml_name="broken", json_content="{ this is not valid json")
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="default-1920x1080",
+            layout_xml_path=xml_path,
+        )
+
+        assert "--overlay-size 1920x1080" in cmd
+
+    def test_custom_template_sidecar_without_canvas_fields_falls_back(self, mock_file_manager, tmp_path):
+        """Sidecar JSON missing canvas_width/canvas_height keys must fall back."""
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_video_only(mock_file_manager)
+        xml_path = self._write_template_files(
+            tmp_path,
+            xml_name="partial",
+            json_content='{"name": "partial", "description": "no canvas dims"}',
+        )
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="default-1920x1080",
+            layout_xml_path=xml_path,
+        )
+
+        assert "--overlay-size 1920x1080" in cmd
+
     def test_gpstitch_local_layout_uses_layout_xml(self, mock_file_manager):
         """GPStitch custom layouts (e.g. dji-drone-*) should use --layout xml --layout-xml."""
         from gpstitch.services.renderer import generate_cli_command
