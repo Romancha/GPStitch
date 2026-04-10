@@ -7,7 +7,8 @@
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-A visual web interface for creating video overlays with GPS telemetry data. Wraps the powerful [gopro-overlay](https://github.com/time4tea/gopro-dashboard-overlay) library with an intuitive UI.
+A visual web interface for creating video overlays with GPS telemetry data. Wraps the
+powerful [gopro-overlay](https://github.com/time4tea/gopro-dashboard-overlay) library with an intuitive UI.
 
 ## Features
 
@@ -15,7 +16,8 @@ A visual web interface for creating video overlays with GPS telemetry data. Wrap
 - **Advanced Mode** — Visual drag-and-drop editor for creating custom overlay layouts
 - **Live Preview** — See your overlay in real-time as you configure it
 - **DJI Drone Support** — Automatic SRT telemetry parsing with timezone and time alignment auto-detection
-- **DJI Osmo Action Support** — Automatic detection of embedded GPS from DJI GPS Bluetooth Remote Controller (Action 4/5/6) — no secondary file needed
+- **DJI Osmo Action Support** — Automatic detection of embedded GPS from DJI GPS Bluetooth Remote Controller (Action
+  4/5/6) — no secondary file needed
 - **Non-GoPro Video Support** — Use any video with external GPX/FIT/SRT files for GPS data
 - **Vertical Video Support** — Automatic rotation detection and correct overlay rendering
 - **GPS Quality Analysis** — Automatic signal quality check with warnings before rendering
@@ -23,7 +25,8 @@ A visual web interface for creating video overlays with GPS telemetry data. Wrap
 - **Batch Rendering** — Process multiple files with the same settings
 - **Shared GPX Batch Render** — Apply a single GPX track to multiple videos with automatic odometer offset per video
 - **Background Jobs** — Render videos in the background with progress tracking
-- **Overlay-Only Mode** — Render transparent telemetry overlays (no video) for compositing in Final Cut Pro, DaVinci Resolve, etc.
+- **Overlay-Only Mode** — Render transparent telemetry overlays (no video) for compositing in Final Cut Pro, DaVinci
+  Resolve, etc.
 
 ## Screenshots
 
@@ -41,11 +44,13 @@ Full visual editor with drag-and-drop widgets. Create custom layouts with comple
 
 ### DJI Drone Support
 
-Use DJI drone videos with SRT telemetry files. Timezone offset and time alignment are automatically detected from video metadata, supporting different DJI models and firmware versions.
+Use DJI drone videos with SRT telemetry files. Timezone offset and time alignment are automatically detected from video
+metadata, supporting different DJI models and firmware versions.
 
 ![DJI Drone Support](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/dji_drone.jpg)
 
-Camera metrics (ISO, shutter, f-number, EV, color temperature) from SRT files are displayed directly on the video overlay.
+Camera metrics (ISO, shutter, f-number, EV, color temperature) from SRT files are displayed directly on the video
+overlay.
 
 ![DJI Drone Overlay](https://raw.githubusercontent.com/Romancha/GPStitch/main/docs/images/dji_drone_screen_from_video.jpg)
 
@@ -66,27 +71,33 @@ Process multiple videos at once with the same overlay settings.
 
 ### Shared GPX Batch Render
 
-Apply a single GPX track to multiple videos recorded during the same activity. Each video automatically gets an odometer offset calculated from its creation time relative to the GPX track start, so the overlay shows the correct absolute distance from the beginning of the track.
+Apply a single GPX track to multiple videos recorded during the same activity. Each video automatically gets an odometer
+offset calculated from its creation time relative to the GPX track start, so the overlay shows the correct absolute
+distance from the beginning of the track.
 
 ### Overlay-Only Mode
 
-Render telemetry overlays with a transparent background — without any source video. Use a GPX, FIT, or SRT file as the primary input, and GPStitch will generate a video with an alpha channel that you can layer on top of your footage in any video editor (Final Cut Pro, DaVinci Resolve, Premiere Pro, etc.).
+Render telemetry overlays with a transparent background — without any source video. Use a GPX, FIT, or SRT file as the
+primary input, and GPStitch will generate a video with an alpha channel that you can layer on top of your footage in any
+video editor (Final Cut Pro, DaVinci Resolve, Premiere Pro, etc.).
 
 **How to use:**
 
 1. Upload a GPX, FIT, or SRT file as the primary file (no video needed)
 2. Configure your overlay layout and widgets as usual
 3. Select an encoding profile with transparency support:
-   - **MOV (PNG)** — Lossless quality, best compatibility with Final Cut Pro and DaVinci Resolve (large files)
-   - **VP9** — Good quality with alpha channel, smaller files
-   - **VP8** — Alpha channel support, widest browser compatibility
+    - **MOV (PNG)** — Lossless quality, best compatibility with Final Cut Pro and DaVinci Resolve (large files)
+    - **VP9** — Good quality with alpha channel, smaller files
+    - **VP8** — Alpha channel support, widest browser compatibility
 4. Render — the output is a video with a transparent background ready for compositing
 
 ## Command-Line Rendering
 
-GPStitch includes `gpstitch-dashboard`, a CLI command that works as a drop-in replacement for `gopro-dashboard.py` with all GPStitch patches applied (DJI support, timecode preservation, audio copy, etc.).
+GPStitch includes `gpstitch-dashboard`, a CLI command that works as a drop-in replacement for `gopro-dashboard.py` with
+all GPStitch patches applied (DJI support, timecode preservation, audio copy, etc.).
 
-Use the "Get Command" button in the UI to generate a ready-to-run `gpstitch-dashboard` command, then paste it into your terminal:
+Use the "Get Command" button in the UI to generate a ready-to-run `gpstitch-dashboard` command, then paste it into your
+terminal:
 
 ```bash
 gpstitch-dashboard video.mp4 output.mp4 --layout xml --layout-xml layout.xml
@@ -122,7 +133,8 @@ gpstitch --host 127.0.0.1 --port 8080
 
 #### Optional: Cairo widgets support
 
-Some layouts (e.g. `example`, `example-2`) use cairo-based widgets (gauges, circuit maps). These require `pycairo`, which needs the cairo system library:
+Some layouts (e.g. `example`, `example-2`) use cairo-based widgets (gauges, circuit maps). These require `pycairo`,
+which needs the cairo system library:
 
 ```bash
 # 1. Install system library
@@ -159,56 +171,72 @@ Then open http://localhost:8000 in your browser.
 
 ### Supported Input Files
 
-| Type | Formats | Description |
-|------|---------|-------------|
-| Video | `.mp4`, `.mov`, `.avi` | Video files (GoPro and DJI Action files may contain embedded GPS) |
-| GPS Data | `.gpx`, `.fit`, `.srt` | External GPS tracks — GPX, FIT, or DJI SRT telemetry (optional) |
+| Type     | Formats                | Description                                                       |
+|----------|------------------------|-------------------------------------------------------------------|
+| Video    | `.mp4`, `.mov`, `.avi` | Video files (GoPro and DJI Action files may contain embedded GPS) |
+| GPS Data | `.gpx`, `.fit`, `.srt` | External GPS tracks — GPX, FIT, or DJI SRT telemetry (optional)   |
 
 ## Time Sync
 
-When using a non-GoPro video with an external GPS file (GPX/FIT), the video and GPS track need to be aligned in time. GPStitch provides three synchronization modes in the **Time Sync** dropdown:
+When using a non-GoPro video with an external GPS file (GPX/FIT), the video and GPS track need to be aligned in time.
+GPStitch provides three synchronization modes in the **Time Sync** dropdown:
 
 ### Auto (Recommended)
 
-Automatically aligns the video to the GPS track using the video's embedded `creation_time` metadata (set by the camera when recording starts). GPStitch extracts this timestamp via ffprobe and cross-validates it against the GPS track's time range.
+Automatically aligns the video to the GPS track using the video's embedded `creation_time` metadata (set by the camera
+when recording starts). GPStitch extracts this timestamp via ffprobe and cross-validates it against the GPS track's time
+range.
 
-**Timezone auto-correction:** Some cameras (e.g., Insta360 Go 3S, certain action cameras) incorrectly write local time into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking whether the video time window overlaps with the GPS data. If it doesn't, GPStitch runs a cascade of correction strategies:
+**Timezone auto-correction:** Some cameras (e.g., Insta360 Go 3S, certain action cameras) incorrectly write local time
+into the `creation_time` field instead of UTC as required by the MP4 specification. GPStitch detects this by checking
+whether the video time window overlaps with the GPS data. If it doesn't, GPStitch runs a cascade of correction
+strategies:
 
-1. **System timezone** — applies your machine's local timezone offset (e.g., PDT = UTC-7). Since GPStitch runs locally, this is a strong signal that matches the recording timezone in most workflows.
-2. **Exhaustive search** — tries all valid whole-hour and fractional timezone offsets (e.g., UTC+5:45) and picks the one that produces overlap with the GPS track. If only one candidate matches, it's used automatically.
-3. **File modification time** — as a last resort, checks whether the file's `mtime` happens to overlap the GPS range (without any timezone shifting).
+1. **System timezone** — applies your machine's local timezone offset (e.g., PDT = UTC-7). Since GPStitch runs locally,
+   this is a strong signal that matches the recording timezone in most workflows.
+2. **Exhaustive search** — tries all valid whole-hour and fractional timezone offsets (e.g., UTC+5:45) and picks the one
+   that produces overlap with the GPS track. If only one candidate matches, it's used automatically.
+3. **File modification time** — as a last resort, checks whether the file's `mtime` happens to overlap the GPS range (
+   without any timezone shifting).
 
-If none of these strategies produce a valid alignment, GPStitch reports a failure and suggests a manual offset value. The UI shows a "Switch to Manual" button pre-filled with the best-guess offset so you can apply it with one click.
+If none of these strategies produce a valid alignment, GPStitch reports a failure and suggests a manual offset value.
+The UI shows a "Switch to Manual" button pre-filled with the best-guess offset so you can apply it with one click.
 
-When a correction is applied, an info banner shows which strategy was used (e.g., "Applied +7h from your system timezone"). If no `creation_time` is found in the video metadata, GPStitch uses the file's creation date (less reliable, shown as a warning).
+When a correction is applied, an info banner shows which strategy was used (e.g., "Applied +7h from your system
+timezone"). If no `creation_time` is found in the video metadata, GPStitch uses the file's creation date (less reliable,
+shown as a warning).
 
 ### Use GPX Timestamps
 
-Skips time alignment entirely. The GPS data is used as-is without synchronization with the video. This mode is useful when:
+Skips time alignment entirely. The GPS data is used as-is without synchronization with the video. This mode is useful
+when:
 
 - The GPX file has been manually trimmed to exactly match the video segment
 - You want the overlay to display the full GPS track regardless of video timing
 
 ### Manual Offset
 
-Works the same as **Auto** (uses video metadata for alignment), but allows you to apply a manual correction in seconds (`+` or `-`). Use this when the automatic alignment is close but slightly off — for example, if the camera's clock was not perfectly synchronized with GPS time.
+Works the same as **Auto** (uses video metadata for alignment), but allows you to apply a manual correction in seconds (
+`+` or `-`). Use this when the automatic alignment is close but slightly off — for example, if the camera's clock was
+not perfectly synchronized with GPS time.
 
 The UI shows the base timestamp and the adjusted result so you can see exactly how the offset is applied.
 
-> **Note:** For DJI drones with SRT files, time synchronization is handled automatically — the Time Sync options are not shown because GPStitch detects the correct alignment from the SRT telemetry data.
+> **Note:** For DJI drones with SRT files, time synchronization is handled automatically — the Time Sync options are not
+> shown because GPStitch detects the correct alignment from the SRT telemetry data.
 
 ## Configuration
 
 Environment variables (prefix: `GPSTITCH_`):
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HOST` | `0.0.0.0` | Server host |
-| `PORT` | `8000` | Server port |
-| `LOCAL_MODE` | `true` | Use local file paths instead of uploads |
-| `TEMPLATES_DIR` | `~/.gpstitch/templates` | Custom templates directory |
-| `ENABLE_GOPRO_PATCHES` | `true` | Enable runtime patches for gopro-overlay |
-| `USE_WRAPPER_SCRIPT` | `true` | Use wrapper script for rendering |
+| Variable               | Default                 | Description                              |
+|------------------------|-------------------------|------------------------------------------|
+| `HOST`                 | `0.0.0.0`               | Server host                              |
+| `PORT`                 | `8000`                  | Server port                              |
+| `LOCAL_MODE`           | `true`                  | Use local file paths instead of uploads  |
+| `TEMPLATES_DIR`        | `~/.gpstitch/templates` | Custom templates directory               |
+| `ENABLE_GOPRO_PATCHES` | `true`                  | Enable runtime patches for gopro-overlay |
+| `USE_WRAPPER_SCRIPT`   | `true`                  | Use wrapper script for rendering         |
 
 You can also use a `.env` file in the project root.
 
@@ -219,8 +247,10 @@ GPStitch includes runtime patches for `gopro-overlay` that add:
 - **Timecode preservation** — Maintains original video timecode for Final Cut Pro compatibility
 - **Audio stream copy** — Preserves audio without re-encoding
 - **Metadata preservation** — Keeps original video metadata in output
-- **DJI camera metrics** — Extends overlay engine with ISO, shutter, f-number, EV, color temperature, and focal length from DJI SRT files
-- **DJI Osmo Action GPS** — Loads embedded protobuf GPS telemetry from DJI Action cameras with GPS Bluetooth Remote Controller
+- **DJI camera metrics** — Extends overlay engine with ISO, shutter, f-number, EV, color temperature, and focal length
+  from DJI SRT files
+- **DJI Osmo Action GPS** — Loads embedded protobuf GPS telemetry from DJI Action cameras with GPS Bluetooth Remote
+  Controller
 - **Odometer offset** — Allows odometer to start from a custom offset value for shared GPX batch rendering
 
 Patches are applied automatically at startup. To disable:
@@ -279,4 +309,16 @@ This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) 
 
 ## Acknowledgments
 
-- [gopro-dashboard-overlay](https://github.com/time4tea/gopro-dashboard-overlay) — The underlying overlay rendering engine
+- [gopro-dashboard-overlay](https://github.com/time4tea/gopro-dashboard-overlay) — The underlying overlay rendering
+  engine
+
+## Support
+
+If you find this project useful, consider supporting its development:
+
+| Method                 | Link                                         |
+|------------------------|----------------------------------------------|
+| 💳 Boosty              | https://boosty.to/romancha                   |
+| ₿ **Bitcoin on-chain** | `bc1qenxrgj6x9un0dpuy5245pgjculj6jqgzht8ned` |
+
+Thank you! 🙏
