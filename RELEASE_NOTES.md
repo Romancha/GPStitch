@@ -1,5 +1,18 @@
 # Release Notes
 
+## Version 0.14.2 — 10 Apr 2026
+
+### ✨ Improvements
+
+- **Canvas size mismatch warning** — Advanced Mode now shows an informational banner when the editor's template canvas dimensions don't match the loaded video's resolution, so users understand why widgets may appear misplaced in the rendered output
+
+### 🐞 Fixes
+
+- Fixed custom templates rendering at the wrong overlay size — `--overlay-size` is now read from the template's sidecar metadata instead of falling back to a hardcoded 1920×1080, which caused widget misalignment for any canvas dimensions other than default
+- Fixed predefined template canvas dimensions being estimated from widget bounding boxes instead of the layout's true size (e.g. `default-3840x2160` now correctly reports 3840×2160)
+
+---
+
 ## Version 0.14.1 — 10 Apr 2026
 
 ### 🎉 Major Features
