@@ -258,24 +258,40 @@ async def get_predefined_layouts():
 
 
 def _load_predefined_layout(layout_name: str) -> EditorLayout:
-    """Load a predefined layout by name."""
+    """Load a predefined layout by name.
+
+    Canvas dimensions from the layout catalog override the heuristic
+    detection in xml_to_layout(). The heuristic estimates canvas size from
+    widget bounding boxes + 50 px padding, which is inaccurate — for e.g.
+    default-3840x2160 it returns 3920x2080 instead of the real 3840x2160.
+    The catalog knows the intended dimensions via layout name parsing.
+    """
     from importlib.resources import as_file, files
 
     from gopro_overlay import layouts
 
-    from gpstitch.services.renderer import _resolve_layout_path
+    from gpstitch.services.renderer import _resolve_layout_path, get_available_layouts
 
     # Check gpstitch custom layouts first (e.g. dji_drone_*)
     local_path = _resolve_layout_path(layout_name)
     if local_path.exists():
         xml_content = local_path.read_text(encoding="utf-8")
-        return xml_converter.xml_to_layout(xml_content, layout_name)
+        layout = xml_converter.xml_to_layout(xml_content, layout_name)
+    else:
+        # Fall back to gopro-overlay package resources
+        try:
+            with as_file(files(layouts) / f"{layout_name}.xml") as fn, open(fn) as f:
+                xml_content = f.read()
+            layout = xml_converter.xml_to_layout(xml_content, layout_name)
+        except FileNotFoundError as e:
+            raise HTTPException(status_code=404, detail=f"Layout '{layout_name}' not found") from e
 
-    # Fall back to gopro-overlay package resources
-    try:
-        with as_file(files(layouts) / f"{layout_name}.xml") as fn, open(fn) as f:
-            xml_content = f.read()
+    # Override canvas dims from the layout catalog (accurate, name-parsed)
+    # instead of the heuristic that xml_to_layout() uses.
+    for info in get_available_layouts():
+        if info.name == layout_name:
+            layout.canvas.width = info.width
+            layout.canvas.height = info.height
+            break
 
-        return xml_converter.xml_to_layout(xml_content, layout_name)
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=f"Layout '{layout_name}' not found") from e
+    return layout

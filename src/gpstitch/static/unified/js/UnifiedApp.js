@@ -320,6 +320,7 @@ class UnifiedApp {
             this._updateFileContext();
             this._requestPreview();
             this._analyzeTimeSync();
+            this._updateCanvasSizeWarning();
         });
 
         // Files changed (secondary added/removed)
@@ -327,6 +328,7 @@ class UnifiedApp {
             this._updateFileContext();
             this._requestPreview();
             this._analyzeTimeSync();
+            this._updateCanvasSizeWarning();
         });
 
         // GPX options changed
@@ -368,6 +370,7 @@ class UnifiedApp {
                 // Small delay to let the UI update first
                 setTimeout(() => this._generatePreview(), 100);
             }
+            this._updateCanvasSizeWarning();
         });
 
         // Editor state changes (for Advanced mode)
@@ -376,6 +379,9 @@ class UnifiedApp {
             editorState.on('widget:removed', () => this._requestPreviewForAdvanced());
             editorState.on('widget:updated', () => this._requestPreviewForAdvanced());
             editorState.on('property:changed', () => this._requestPreviewForAdvanced());
+            // Canvas size mismatch warning
+            editorState.on('layout:changed', () => this._updateCanvasSizeWarning());
+            editorState.on('canvas:changed', () => this._updateCanvasSizeWarning());
         }
 
         // Export button
@@ -509,6 +515,60 @@ class UnifiedApp {
 
     _hideFileContext() {
         this.fileContextEl.classList.add('hidden');
+    }
+
+    /**
+     * Update the canvas-size mismatch warning banner in Advanced Mode.
+     *
+     * Shows when:
+     * - Current mode is Advanced
+     * - A primary video file is loaded with known width/height metadata
+     * - An editor layout is loaded with known canvas width/height
+     * - Canvas dimensions differ from video dimensions
+     *
+     * In any other case the banner is hidden. No automatic fix is applied —
+     * this is purely informational so users understand why widgets may appear
+     * misplaced on the rendered video (ffmpeg overlay compositing does not
+     * scale the overlay to match the source video resolution).
+     */
+    _updateCanvasSizeWarning() {
+        const banner = document.getElementById('canvas-size-warning');
+        if (!banner) return;
+
+        // Only show in Advanced Mode
+        if (this.state.mode !== 'advanced') {
+            banner.classList.add('hidden');
+            return;
+        }
+
+        // Need video dims from primary file metadata
+        const primary = this.state.getPrimaryFile?.();
+        const videoMeta = primary?.video_metadata;
+        const videoW = videoMeta?.width;
+        const videoH = videoMeta?.height;
+
+        // Need canvas dims from editor state
+        const canvas = window.editorState?.layout?.canvas;
+        const canvasW = canvas?.width;
+        const canvasH = canvas?.height;
+
+        if (!videoW || !videoH || !canvasW || !canvasH) {
+            banner.classList.add('hidden');
+            return;
+        }
+
+        // Same size — no mismatch
+        if (canvasW === videoW && canvasH === videoH) {
+            banner.classList.add('hidden');
+            return;
+        }
+
+        // Mismatch — populate dims and show
+        const canvasDimsEl = banner.querySelector('.canvas-dims');
+        const videoDimsEl = banner.querySelector('.video-dims');
+        if (canvasDimsEl) canvasDimsEl.textContent = `${canvasW}\u00D7${canvasH}`;
+        if (videoDimsEl) videoDimsEl.textContent = `${videoW}\u00D7${videoH}`;
+        banner.classList.remove('hidden');
     }
 
     /**

@@ -172,6 +172,15 @@
 
                     <!-- Canvas container (for Advanced mode) -->
                     <div id="canvas-container">
+                        <div id="canvas-size-warning" class="canvas-size-warning hidden" role="status">
+                            <span class="canvas-size-warning-icon" aria-hidden="true">&#9888;</span>
+                            <div class="canvas-size-warning-text">
+                                <strong>Canvas size doesn't match video resolution.</strong>
+                                Template canvas is <span class="canvas-dims"></span>, video is <span class="video-dims"></span>.
+                                Widgets will render at their designed pixel coordinates and may appear misplaced on the video frame.
+                                To fix: set the editor canvas to match the video resolution, or use a template designed for this video size.
+                            </div>
+                        </div>
                         <div id="canvas-viewport" class="canvas-viewport">
                             <!-- Spacer defines the scrollable area (absolute elements don't contribute to overflow) -->
                             <div id="canvas-spacer" class="canvas-spacer"></div>
