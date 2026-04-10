@@ -495,9 +495,27 @@ class CorrectionResult:
     suggested_offset_seconds: int | None = None  # only set when correction failed
 
 
-def _get_system_tz_offset() -> datetime.timedelta:
-    """Return the system's current UTC offset (mockable in tests)."""
-    return datetime.datetime.now().astimezone().utcoffset()
+def _get_system_tz_offset(reference_dt: datetime.datetime | None = None) -> datetime.timedelta:
+    """Return the system's UTC offset that was in effect at `reference_dt`.
+
+    When `reference_dt` is provided, uses Python's `astimezone()` to look up the
+    historical offset for that specific moment — this correctly handles DST
+    transitions, e.g., a video recorded in PST (UTC-8) but processed after the
+    DST switch in PDT (UTC-7) gets the recording-date offset, not the runtime
+    offset (Bug B from issue #9).
+
+    When `reference_dt` is None, falls back to the current local offset.
+    Mockable in tests.
+
+    Caveat: when `reference_dt` is the corrupt local-as-UTC creation_time of an
+    Insta360-style file, the date in `reference_dt` is correct but the hour is
+    shifted by `|offset|`. For recordings made within `|offset|` hours after a
+    DST switch, the astimezone() lookup may return the pre-switch offset
+    (off-by-one-hour). This narrow window is left to the exhaustive cascade.
+    """
+    if reference_dt is None:
+        reference_dt = datetime.datetime.now(tz=datetime.UTC)
+    return reference_dt.astimezone().utcoffset()
 
 
 def _find_overlap_candidates(ct_ts: float, duration: float, gps_min: float, gps_max: float) -> list[int]:
@@ -588,15 +606,38 @@ def _validate_creation_time(
     gps_min, gps_max = gps_range
     ct_ts = creation_time.timestamp()
 
+    # Pre-compute both candidates upfront so we can detect ambiguity (Bug A from issue #9).
+    # Bug A trigger: when GPS range is wide enough to contain BOTH the as-is creation_time
+    # and the system-tz-shifted creation_time, Step 1 used to win greedily and silently
+    # return the wrong answer for non-GoPro cameras (Insta360 local-as-UTC bug). We don't
+    # change behavior here — Step 1 still wins — but we emit a warning so silent
+    # miscorrections become discoverable in logs.
+    system_tz = _get_system_tz_offset(creation_time)  # Bug B: use historical offset
+    system_tz_seconds = int(system_tz.total_seconds())
+    system_shifted = ct_ts + (-system_tz_seconds)  # negate: UTC-7 means +7h correction
+
+    as_is_overlap = _overlap_seconds(ct_ts, video_duration_sec, gps_min, gps_max)
+    sys_overlap = (
+        _overlap_seconds(system_shifted, video_duration_sec, gps_min, gps_max) if system_tz_seconds != 0 else 0.0
+    )
+
+    if as_is_overlap > 0 and sys_overlap > 0:
+        shifted_dt_for_log = datetime.datetime.fromtimestamp(system_shifted, tz=datetime.UTC)
+        logger.warning(
+            "Ambiguous time alignment for %s: both as-is (%s) and system-tz-shifted (%s) "
+            "overlap GPS range. Using as-is. If sync looks wrong, switch to Manual offset mode. "
+            "(issue #9)",
+            file_path.name,
+            creation_time.isoformat(),
+            shifted_dt_for_log.isoformat(),
+        )
+
     # Step 1: creation_time as-is overlaps GPS → no correction needed
-    if _overlap_seconds(ct_ts, video_duration_sec, gps_min, gps_max) > 0:
+    if as_is_overlap > 0:
         return no_correction
 
     # Step 2: system timezone correction
-    system_tz = _get_system_tz_offset()
-    system_tz_seconds = int(system_tz.total_seconds())
-    system_shifted = ct_ts + (-system_tz_seconds)  # negate: UTC-7 means +7h correction
-    if _overlap_seconds(system_shifted, video_duration_sec, gps_min, gps_max) > 0:
+    if sys_overlap > 0:
         shifted_dt = datetime.datetime.fromtimestamp(system_shifted, tz=datetime.UTC)
         correction_hours = (-system_tz_seconds) / 3600
         logger.info(

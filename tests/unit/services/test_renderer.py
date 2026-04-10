@@ -1361,6 +1361,126 @@ class TestValidateCreationTimeEnumerate:
         assert result.correction_type is None
         assert result.suggested_offset_seconds is None
 
+    # --- Bug A detection (issue #9 follow-up): warn when ambiguous ---
+
+    def test_warns_when_both_as_is_and_system_tz_overlap(self, caplog):
+        """Bug A detection: when both as-is creation_time AND system-tz-shifted overlap GPS,
+        log a warning. Behavior unchanged — Step 1 (as-is) still wins greedily — but a
+        diagnostic warning is emitted so silent miscorrections become discoverable.
+
+        Scenario: long all-day GPS log that contains both the local-time (corrupt) reading
+        and the true UTC reading. Without the warning this would silently pick the wrong one.
+        """
+        import logging
+
+        # GPS spans 18 hours — wide enough to contain both 09:45:39Z and 16:45:39Z
+        wide_gps = (
+            datetime.datetime(2026, 4, 9, 5, 0, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 4, 9, 23, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        # Insta360-style local-as-UTC creation_time
+        local_ct = datetime.datetime(2026, 4, 9, 9, 45, 39, tzinfo=datetime.UTC)
+        system_tz = datetime.timedelta(hours=-7)  # PDT
+
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=wide_gps),
+            patch("gpstitch.services.renderer._get_system_tz_offset", return_value=system_tz),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+            caplog.at_level(logging.WARNING, logger="gpstitch.services.renderer"),
+        ):
+            mock_stat.return_value.st_mtime = local_ct.timestamp()
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), local_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+
+        # Behavior unchanged: as-is still wins (Step 1 greedy)
+        assert result.time == local_ct
+        assert result.correction_type is None
+
+        # NEW: warning logged about the ambiguity
+        ambiguity_warnings = [
+            r for r in caplog.records if "ambiguous" in r.message.lower() or "ambiguity" in r.message.lower()
+        ]
+        assert ambiguity_warnings, "Expected a warning about ambiguous time interpretation"
+        # The warning should mention both candidates
+        warning_msg = ambiguity_warnings[0].message
+        assert "09:45:39" in warning_msg, "Warning should mention as-is time"
+        assert "16:45:39" in warning_msg, "Warning should mention shifted time"
+
+    def test_no_warning_when_only_one_candidate_overlaps(self, caplog):
+        """Negative case: standard short-video-in-narrow-GPS case must NOT warn — only one candidate fits."""
+        import logging
+
+        # GPS spans only 90 minutes — only the shifted version fits
+        narrow_gps = (
+            datetime.datetime(2026, 4, 9, 16, 30, 0, tzinfo=datetime.UTC).timestamp(),
+            datetime.datetime(2026, 4, 9, 18, 0, 0, tzinfo=datetime.UTC).timestamp(),
+        )
+        local_ct = datetime.datetime(2026, 4, 9, 9, 45, 39, tzinfo=datetime.UTC)
+        system_tz = datetime.timedelta(hours=-7)
+
+        with (
+            patch("gpstitch.services.renderer._get_gps_time_range", return_value=narrow_gps),
+            patch("gpstitch.services.renderer._get_system_tz_offset", return_value=system_tz),
+            patch("gpstitch.services.renderer.os.stat") as mock_stat,
+            caplog.at_level(logging.WARNING, logger="gpstitch.services.renderer"),
+        ):
+            mock_stat.return_value.st_mtime = local_ct.timestamp()
+            result = _validate_creation_time(
+                Path("/tmp/video.mp4"), local_ct, self.VIDEO_DURATION, Path("/tmp/track.fit")
+            )
+
+        # Standard system-tz path
+        assert result.correction_type == "system-tz"
+        assert result.tz_correction_hours == 7.0
+
+        # NO ambiguity warning — only one candidate fit
+        ambiguity_warnings = [
+            r for r in caplog.records if "ambiguous" in r.message.lower() or "ambiguity" in r.message.lower()
+        ]
+        assert not ambiguity_warnings, f"Expected no ambiguity warning, got: {[w.message for w in ambiguity_warnings]}"
+
+
+class TestSystemTzOffsetHistorical:
+    """Tests for _get_system_tz_offset reference-date-aware behavior (Bug B fix, issue #9)."""
+
+    def test_default_no_argument_uses_current_time(self):
+        """Backward compatibility: calling without args returns the current local offset."""
+        from gpstitch.services.renderer import _get_system_tz_offset
+
+        result = _get_system_tz_offset()
+        expected = datetime.datetime.now().astimezone().utcoffset()
+        # Within 1 second tolerance for runtime drift between calls
+        assert abs((result - expected).total_seconds()) < 1
+
+    def test_explicit_reference_date_uses_that_date_offset(self):
+        """Bug B: passing a reference datetime returns the offset that was in effect at that date.
+
+        This handles DST transitions: a video recorded before DST switch processed after DST
+        switch should get the recording-date offset, not the runtime offset.
+        """
+        from gpstitch.services.renderer import _get_system_tz_offset
+
+        # Use a fixed historical UTC moment
+        ref = datetime.datetime(2020, 6, 15, 12, 0, 0, tzinfo=datetime.UTC)
+        result = _get_system_tz_offset(ref)
+        # Contract: must equal what astimezone() would compute directly for this date
+        expected = ref.astimezone().utcoffset()
+        assert result == expected
+
+    def test_reference_date_path_does_not_call_now(self):
+        """Bug B regression guard: when reference_dt is given, datetime.now() must NOT be called.
+
+        Otherwise the runtime DST state could leak into the result.
+        """
+        from gpstitch.services import renderer
+
+        ref = datetime.datetime(2020, 1, 1, 0, 0, 0, tzinfo=datetime.UTC)
+        with patch.object(renderer.datetime, "datetime", wraps=datetime.datetime) as mock_dt:
+            renderer._get_system_tz_offset(ref)
+            # datetime.now should not have been called inside the function
+            assert not mock_dt.now.called, "Bug B: _get_system_tz_offset(ref) must not call datetime.now()"
+
 
 class TestLayoutCommandGeneration:
     """Tests for --layout / --layout-xml in generate_cli_command (GitHub issue #5)."""
