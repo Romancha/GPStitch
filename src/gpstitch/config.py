@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_prefix="GPSTITCH_",
         env_file=".env",
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # Server settings
