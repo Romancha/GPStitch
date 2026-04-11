@@ -1775,6 +1775,16 @@ def generate_cli_command(
     cmd_parts.append(f"--units-distance {shlex.quote(units_distance)}")
     cmd_parts.append(f"--units-temperature {shlex.quote(units_temperature)}")
 
+    # Always load extra GoPro telemetry tracks (ACCL/GRAV/CORI).
+    # gopro-dashboard.py defaults --load to an empty set, which skips these
+    # tracks for performance. GPStitch needs them so that metric widgets bound
+    # to accl.*, grav.*, and ori.pitch/roll/yaw render correctly in the final
+    # video — matching the editor preview, which loads all tracks by default.
+    # The flag is a no-op in --use-gpx-only paths (GPX/FIT/SRT/DJI meta), since
+    # gopro-dashboard only consumes it when loading GPMF from a GoPro video.
+    # See GitHub issue #15.
+    cmd_parts.append("--load ACCL GRAV CORI")
+
     # Always add map style if specified
     if map_style:
         cmd_parts.append(f"--map-style {shlex.quote(map_style)}")

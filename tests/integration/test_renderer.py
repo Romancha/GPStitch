@@ -417,6 +417,175 @@ class TestRendererOrientationDegrees:
 
 
 @pytest.mark.integration
+@pytest.mark.slow
+class TestRendererOrientationFullRender:
+    """Reproduces GitHub issue #15: orientation metrics render as tiny white
+    rectangles in the final (subprocess) render even though they display
+    correctly in the editor preview.
+
+    Root cause: the gopro-dashboard CLI defaults ``--load`` to an empty set,
+    which disables extraction of the CORI (camera orientation) track. Without
+    CORI loaded, ``e.ori`` is ``None``, so ``ori.pitch/roll/yaw`` accessors
+    return ``None`` and the metric widget renders an empty string — the visible
+    outline stroke becomes the reported "tiny white rectangle".
+
+    Preview works because the in-process loader path (``renderer._render_layout_with_data``)
+    constructs ``GoproLoader`` without a ``flags`` argument, which loads ALL
+    telemetry tracks including CORI by default.
+    """
+
+    @pytest.fixture
+    def render_output_dir(self):
+        """Create temporary directory for render outputs."""
+        with tempfile.TemporaryDirectory(prefix="gpstitch_test_ori_render_") as tmpdir:
+            yield Path(tmpdir)
+
+    def _count_bright_pixels(self, png_bytes: bytes, region: tuple[int, int, int, int]) -> int:
+        """Count near-white pixels inside a region of a PNG frame.
+
+        A properly rendered metric value (60px font, stroke=2) produces
+        thousands of bright pixels in its widget region. The buggy path
+        produces only a handful (just the outline stroke of an empty text box).
+        """
+        import io
+
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(png_bytes)).convert("RGB")
+        crop = img.crop(region)
+        bright = 0
+        for r, g, b in crop.getdata():
+            if r >= 220 and g >= 220 and b >= 220:
+                bright += 1
+        return bright
+
+    def test_orientation_metrics_visible_in_final_render(
+        self,
+        integration_test_video,
+        render_output_dir,
+        clean_file_manager,
+        monkeypatch,
+    ):
+        """Full subprocess render of a GoPro video with Pitch/Roll/Yaw metrics
+        must produce visible values — not tiny white rectangles (issue #15).
+        """
+        from gpstitch.services import file_manager as fm_module
+        from gpstitch.services.renderer import generate_cli_command
+
+        # Custom layout XML with three orientation metrics at known positions.
+        # Large font (size=60) so rendered digits cover thousands of pixels
+        # when CORI is loaded, but a broken (empty) render leaves only the
+        # tiny stroke outline.
+        layout_xml_path = render_output_dir / "orientation_layout.xml"
+        layout_xml_path.write_text(
+            """<layout>
+  <component type="metric" name="pitch" x="100" y="100"
+             metric="ori.pitch" units="degree" dp="1" size="60"
+             rgb="255,255,255" outline="0,0,0" outline_width="2" align="left"/>
+  <component type="metric" name="roll" x="100" y="300"
+             metric="ori.roll" units="degree" dp="1" size="60"
+             rgb="255,255,255" outline="0,0,0" outline_width="2" align="left"/>
+  <component type="metric" name="yaw" x="100" y="500"
+             metric="ori.yaw" units="degree" dp="1" size="60"
+             rgb="255,255,255" outline="0,0,0" outline_width="2" align="left"/>
+</layout>
+"""
+        )
+
+        # Set up a file_manager session pointing at the GoPro test video
+        # (which has CORI telemetry embedded in its GPMF stream).
+        session_id = clean_file_manager.create_local_session()
+        clean_file_manager.add_file(
+            session_id=session_id,
+            filename=integration_test_video.name,
+            file_path=integration_test_video,
+            file_type="video",
+            role=FileRole.PRIMARY,
+        )
+        monkeypatch.setattr(fm_module, "file_manager", clean_file_manager)
+
+        # Generate and run the real CLI command (same path as production renders).
+        output_file = render_output_dir / "orientation_output.mp4"
+        cmd, _ = generate_cli_command(
+            session_id=session_id,
+            output_file=str(output_file),
+            layout="default-1920x1080",
+            layout_xml_path=str(layout_xml_path),
+        )
+
+        assert "--layout-xml" in cmd
+        assert str(layout_xml_path) in cmd
+
+        # Execute through the gpstitch-dashboard wrapper, exactly like render_service.
+        from gpstitch.scripts import gopro_dashboard_wrapper
+
+        wrapper = Path(gopro_dashboard_wrapper.__file__)
+        args = shlex.split(cmd)
+        args[0] = str(wrapper)
+
+        result = subprocess.run(
+            [sys.executable, *args],
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        assert result.returncode == 0, f"Render failed with exit code {result.returncode}:\n{result.stderr[-2000:]}"
+        assert output_file.exists(), "Output video was not created"
+
+        # Extract a frame from ~2s into the video (after ramp-up).
+        frame_file = render_output_dir / "frame.png"
+        probe = subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-ss",
+                "2",
+                "-i",
+                str(output_file),
+                "-frames:v",
+                "1",
+                "-update",
+                "1",
+                str(frame_file),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert probe.returncode == 0, f"ffmpeg frame extraction failed: {probe.stderr}"
+        assert frame_file.exists()
+
+        frame_bytes = frame_file.read_bytes()
+
+        # For each orientation widget, count bright (text) pixels in a generous
+        # crop around its (x, y). A correctly rendered "-12.3" at size=60
+        # produces several thousand bright pixels. The bug manifests as a
+        # tiny ~15x5 outline rectangle (<150 bright pixels).
+        #
+        # Threshold of 800 is well above the "tiny rectangle" floor but well
+        # below the realistic rendered-text count, so it cleanly separates
+        # the broken and fixed cases.
+        pitch_bright = self._count_bright_pixels(frame_bytes, (80, 80, 480, 200))
+        roll_bright = self._count_bright_pixels(frame_bytes, (80, 280, 480, 400))
+        yaw_bright = self._count_bright_pixels(frame_bytes, (80, 480, 480, 600))
+
+        assert pitch_bright > 800, (
+            f"ori.pitch did not render as text (only {pitch_bright} bright px) — "
+            f"issue #15: CORI track not loaded by CLI render"
+        )
+        assert roll_bright > 800, (
+            f"ori.roll did not render as text (only {roll_bright} bright px) — "
+            f"issue #15: CORI track not loaded by CLI render"
+        )
+        assert yaw_bright > 800, (
+            f"ori.yaw did not render as text (only {yaw_bright} bright px) — "
+            f"issue #15: CORI track not loaded by CLI render"
+        )
+
+
+@pytest.mark.integration
 class TestRendererUnits:
     """Tests for unit options."""
 
