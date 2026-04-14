@@ -1,5 +1,14 @@
 # Release Notes
 
+## Version 0.15.0 — 14 Apr 2026
+
+### 🐞 Fixes
+
+- Fixed orientation widgets (Pitch, Roll, Yaw) rendering as tiny empty rectangles in CLI renders — the subprocess was not loading CORI/ACCL/GRAV tracks from GoPro GPMF data, while the editor preview worked correctly ([#15](https://github.com/Romancha/GPStitch/issues/15))
+- Fixed startup crash when unrecognized environment variables with `GPSTITCH_` prefix are present ([#3](https://github.com/Romancha/GPStitch/issues/3))
+
+---
+
 ## Version 0.14.2 — 10 Apr 2026
 
 ### ✨ Improvements
