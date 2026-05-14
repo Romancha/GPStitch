@@ -1,5 +1,18 @@
 # Release Notes
 
+## Version 0.17.0 — 14 May 2026
+
+### 🆕 New
+
+- **Canvas size controls in Advanced Mode** — Width × height inputs in the Advanced Mode toolbar let you resize the editor canvas directly, and the size-mismatch warning now offers a one-click "Resize canvas to <video>" button
+
+### 🐞 Fixes
+
+- Fixed render crash on Windows when log lines contained non-ASCII characters (e.g. the `→` arrow from pillarbox pre-processing) — state files are now written as UTF-8 instead of the system locale (cp1252)
+- Fixed pillarbox pre-processing scaling custom-canvas videos down to 1920×1080 — `_needs_pillarbox` now reads canvas dimensions from the template's sidecar JSON, matching what `--overlay-size` passes to the renderer
+
+---
+
 ## Version 0.15.0 — 14 Apr 2026
 
 ### 🐞 Fixes
