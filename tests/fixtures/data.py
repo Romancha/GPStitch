@@ -72,6 +72,8 @@ TEST_RUN_GPX_PATH = str(Path(__file__).parent / "videos" / "hiking_activity.gpx"
 TEST_DJI_VIDEO_PATH = str(Path(__file__).parent / "videos" / "DJI_20250723102139_0001_D.MP4")
 TEST_DJI_SRT_PATH = str(Path(__file__).parent / "videos" / "DJI_20250723102139_0001_D.SRT")
 TEST_DJI_ACTION_VIDEO_PATH = str(Path(__file__).parent / "videos" / "dji_osmo_action5_gps_remote_5s.MP4")
+# Viofo/Novatek dashcam: real freeGPS blocks from issue #27 grafted onto a small re-encode.
+TEST_VIOFO_VIDEO_PATH = Path(__file__).parent / "videos" / "viofo_freegps_fixture.MP4"
 TEST_MOV_TZ_TEST_PATH = str(Path(__file__).parent / "videos" / "IMG_2927_tz_test.MOV")
 TEST_MOV_TZ_OVERLAP_TEST_PATH = str(Path(__file__).parent / "videos" / "IMG_2927_tz_overlap_test.MOV")
 TEST_LONG_GPS_TRACK_TZ_TEST_PATH = str(Path(__file__).parent / "videos" / "long_gps_track_tz_test.gpx")

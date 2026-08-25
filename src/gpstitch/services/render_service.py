@@ -150,6 +150,26 @@ class RenderService:
             except Exception:
                 logger.warning("Failed to extract DJI meta GPS timestamp for mtime alignment")
 
+        # Novatek dashcams: same story — the camera stamps each freeGPS block, and
+        # that is more reliable than creation_time or an mtime lost on upload.
+        if (
+            primary is not None
+            and primary.file_type == "video"
+            and getattr(primary.video_metadata, "has_novatek_gps", False) is True
+            and not secondary
+        ):
+            try:
+                from gpstitch.services.novatek_parser import parse_novatek_gps_file
+
+                points = parse_novatek_gps_file(Path(video_path))
+                if points:
+                    first_gps_ts = points[0].timestamp.replace(tzinfo=UTC).timestamp()
+                    if config.video_time_alignment == "manual" and config.time_offset_seconds:
+                        first_gps_ts += config.time_offset_seconds
+                    return first_gps_ts
+            except Exception:
+                logger.warning("Failed to extract Novatek GPS timestamp for mtime alignment")
+
         if config.video_time_alignment in ("auto", "manual") and not is_srt:
             from gpstitch.services.renderer import _extract_creation_time, _validate_creation_time
 
@@ -397,15 +417,19 @@ class RenderService:
         primary = file_manager.get_primary_file(config.session_id)
         secondary = file_manager.get_secondary_file(config.session_id)
         # mtime manipulation is needed when there's a secondary file (merge mode)
-        # or when the primary has DJI meta GPS (uses --video-time-start file-modified).
+        # or when the primary has embedded GPS (DJI meta / Novatek freeGPS), which
+        # uses --video-time-start file-modified.
         # Video-only renders (Mode 1, GoPro) don't use --video-time-start.
-        has_dji_meta = (
+        has_embedded_gps = (
             primary is not None
             and primary.file_type == "video"
-            and getattr(primary.video_metadata, "has_dji_meta", False) is True
             and secondary is None
+            and (
+                getattr(primary.video_metadata, "has_dji_meta", False) is True
+                or getattr(primary.video_metadata, "has_novatek_gps", False) is True
+            )
         )
-        needs_mtime = secondary is not None or has_dji_meta
+        needs_mtime = secondary is not None or has_embedded_gps
         if primary and primary.file_type == "video":
             pillarbox_info = self._needs_pillarbox(primary.file_path, config)
             if pillarbox_info:

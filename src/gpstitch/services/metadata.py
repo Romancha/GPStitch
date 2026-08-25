@@ -84,6 +84,19 @@ def extract_video_metadata(file_path: Path) -> VideoMetadata | None:
         except Exception:
             logger.debug("DJI meta detection skipped for %s", file_path)
 
+        # Detect embedded Novatek freeGPS telemetry (Viofo and other dashcams)
+        has_novatek_gps = False
+        novatek_gps_point_count = None
+        try:
+            from gpstitch.services.novatek_parser import get_novatek_gps_metadata
+
+            novatek_meta = get_novatek_gps_metadata(file_path)
+            if novatek_meta:
+                novatek_gps_point_count = novatek_meta.get("gps_point_count", 0)
+                has_novatek_gps = novatek_gps_point_count > 0
+        except Exception:
+            logger.debug("Novatek GPS detection skipped for %s", file_path)
+
         return VideoMetadata(
             width=display_w,
             height=display_h,
@@ -93,6 +106,8 @@ def extract_video_metadata(file_path: Path) -> VideoMetadata | None:
             has_gps=has_gps,
             has_dji_meta=has_dji_meta,
             dji_meta_point_count=dji_meta_point_count,
+            has_novatek_gps=has_novatek_gps,
+            novatek_gps_point_count=novatek_gps_point_count,
         )
     except Exception:
         logger.exception("Error extracting video metadata from %s", file_path)

@@ -124,3 +124,54 @@ def patch_dji_meta_load(video_path: str) -> None:
     loading_module.load_external = patched_load_external
     loading_module._ts_dji_meta_patched = True
     logger.info("Patched gopro_overlay.loading.load_external for DJI meta")
+
+
+def patch_novatek_load(video_path: str) -> None:
+    """Patch gopro_overlay.loading.load_external to load Novatek freeGPS instead of GPX.
+
+    Viofo and other Novatek-chipset dashcams embed GPS in `freeGPS` blocks. The
+    render path hands gopro-dashboard.py an intermediate GPX (it only accepts
+    GPX/FIT); intercepting load_external() here keeps the full precision of the
+    original blocks, mirroring what patch_dji_meta_load does.
+
+    Args:
+        video_path: Path to the dashcam video with embedded freeGPS blocks.
+    """
+    import gopro_overlay.loading as loading_module
+
+    if getattr(loading_module, "_ts_novatek_patched", False):
+        logger.debug("load_external already patched for Novatek, skipping")
+        return
+
+    from gpstitch.constants import DEFAULT_GPS_TARGET_HZ
+    from gpstitch.services.novatek_parser import novatek_to_timeseries, parse_novatek_gps_file
+    from gpstitch.services.srt_parser import calc_sample_rate
+
+    video_filepath = Path(video_path)
+
+    points = parse_novatek_gps_file(video_filepath)
+    if not points:
+        raise ValueError(f"No valid GPS data found in Novatek freeGPS blocks: {video_filepath}")
+
+    duration_s = max((points[-1].timestamp - points[0].timestamp).total_seconds(), 1)
+    source_hz = len(points) / duration_s
+    sample_rate = calc_sample_rate(source_hz, DEFAULT_GPS_TARGET_HZ)
+
+    # Make timestamps UTC-aware. gopro-dashboard.py compares timeseries dates with
+    # timezone-aware video file dates; the camera stamps naive local time, so
+    # without tzinfo this raises "can't compare offset-naive and offset-aware
+    # datetimes". --video-time-start file-modified does the actual alignment.
+    points = [dc_replace(p, timestamp=p.timestamp.replace(tzinfo=UTC)) for p in points]
+
+    logger.info(
+        f"Novatek patch: {video_filepath.name}, {len(points)} points, {source_hz:.1f}fps, sample_rate={sample_rate}"
+    )
+
+    def patched_load_external(filepath: Path, units):
+        """Load Novatek freeGPS data instead of GPX."""
+        logger.info(f"Novatek patch: intercepting load_external({filepath.name}) -> {video_filepath.name}")
+        return novatek_to_timeseries(points, units, sample_rate)
+
+    loading_module.load_external = patched_load_external
+    loading_module._ts_novatek_patched = True
+    logger.info("Patched gopro_overlay.loading.load_external for Novatek freeGPS")

@@ -353,6 +353,21 @@ class TestExtractCustomArgs:
         assert result["srt_path"] is None
         assert sys.argv == ["script", "--gpx", "t.gpx", "--use-gpx-only"]
 
+    def test_extracts_novatek_source(self, monkeypatch):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["script", "--gpx", "t.gpx", "--ts-novatek-source", "/path/to/viofo.MP4", "--use-gpx-only"],
+        )
+        result = _extract_custom_args()
+        assert result["novatek_source"] == "/path/to/viofo.MP4"
+        assert result["dji_meta_source"] is None
+        assert sys.argv == ["script", "--gpx", "t.gpx", "--use-gpx-only"]
+
     def test_extracts_dji_meta_with_other_args(self, monkeypatch):
         import sys
 

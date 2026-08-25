@@ -32,6 +32,7 @@ from gpstitch.constants import (
 )
 from gpstitch.scripts.gopro_dashboard_wrapper import (
     TS_DJI_META_SOURCE_ARG,
+    TS_NOVATEK_SOURCE_ARG,
     TS_ODO_OFFSET_ARG,
     TS_SRT_SOURCE_ARG,
     TS_SRT_VIDEO_ARG,
@@ -1103,6 +1104,63 @@ def _load_dji_meta_for_preview(file_path: Path, units):
     return timeseries
 
 
+def _load_novatek_for_preview(file_path: Path, units):
+    """Load GPS timeseries from embedded Novatek freeGPS blocks for preview.
+
+    Args:
+        file_path: Path to the dashcam video with freeGPS blocks
+        units: gopro_overlay units module
+
+    Returns:
+        Timeseries with GPS data and calculated speeds/odometer
+
+    Raises:
+        ValueError: If no usable freeGPS telemetry is found
+    """
+    from gpstitch.services.novatek_parser import novatek_to_timeseries, parse_novatek_gps_file
+    from gpstitch.services.srt_parser import calc_sample_rate
+
+    points = parse_novatek_gps_file(file_path)
+    if not points:
+        raise ValueError(f"No valid GPS data found in Novatek freeGPS blocks: {file_path}")
+
+    # Novatek cameras log at ~1 Hz already, so this is usually a no-op.
+    sample_rate = 1
+    if len(points) > 1:
+        duration_s = (points[-1].timestamp - points[0].timestamp).total_seconds()
+        if duration_s > 0:
+            sample_rate = calc_sample_rate(len(points) / duration_s, DEFAULT_GPS_TARGET_HZ)
+
+    timeseries = novatek_to_timeseries(points, units, sample_rate)
+    _apply_timeseries_processing(timeseries)
+    return timeseries
+
+
+def _resolve_novatek_start_date(file_path: Path, ffmpeg_gopro, video_time_alignment=None, time_offset_seconds=None):
+    """Resolve video start_date from Novatek freeGPS timestamps.
+
+    The blocks are written alongside the frames, so the first one's timestamp is
+    the video start. Falls back to _resolve_time_alignment if parsing fails.
+    """
+    try:
+        from gpstitch.services.novatek_parser import parse_novatek_gps_file
+
+        points = parse_novatek_gps_file(file_path)
+        if points:
+            recording = ffmpeg_gopro.find_recording(file_path)
+            start_date = points[0].timestamp
+            if video_time_alignment == "manual" and time_offset_seconds:
+                start_date = start_date + datetime.timedelta(seconds=time_offset_seconds)
+            return start_date, recording.video.duration
+    except Exception:
+        logger.debug("Could not resolve start date from Novatek GPS for %s", file_path)
+
+    start_date, duration, _source = _resolve_time_alignment(
+        file_path, video_time_alignment, ffmpeg_gopro, time_offset_seconds
+    )
+    return start_date, duration
+
+
 def _resolve_dji_meta_start_date(file_path: Path, ffmpeg_gopro, video_time_alignment=None, time_offset_seconds=None):
     """Resolve video start_date from DJI meta GPS timestamps.
 
@@ -1252,6 +1310,18 @@ def _load_video_framemeta(
             )
             start_date = _align_timezone(start_date, timeseries)
             return timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
+
+        # Fall back to Novatek freeGPS blocks (Viofo and other dashcams).
+        from gpstitch.services.novatek_parser import detect_novatek_gps
+
+        if detect_novatek_gps(file_path):
+            timeseries = _load_novatek_for_preview(file_path, units)
+            start_date, duration = _resolve_novatek_start_date(
+                file_path, ffmpeg_gopro, video_time_alignment, time_offset_seconds
+            )
+            start_date = _align_timezone(start_date, timeseries)
+            return timeseries_to_framemeta(timeseries, units, start_date=start_date, duration=duration)
+
         raise ValueError(f"Could not load GPS data from video: {e}. Try adding a GPX/FIT file.") from e
 
 
@@ -1679,6 +1749,32 @@ def _convert_dji_meta_to_gpx(video_path: Path) -> str:
     return str(gpx_output)
 
 
+def _convert_novatek_to_gpx(video_path: Path) -> str:
+    """Convert embedded Novatek freeGPS telemetry to a temporary GPX file.
+
+    gopro-dashboard.py only accepts GPX/FIT, so the render path hands it one.
+    Uses a unique temp file path to avoid race conditions in concurrent renders.
+
+    Returns:
+        Path string to the generated GPX file
+    """
+    import uuid
+
+    from gpstitch.services.novatek_parser import novatek_to_gpx_file, parse_novatek_gps_file
+    from gpstitch.services.srt_parser import calc_sample_rate
+
+    points = parse_novatek_gps_file(video_path)
+    # Novatek cameras log at ~1 Hz already, so this is usually a no-op.
+    source_hz = (
+        len(points) / max((points[-1].timestamp - points[0].timestamp).total_seconds(), 1) if len(points) > 1 else 1.0
+    )
+    sample_rate = calc_sample_rate(source_hz, DEFAULT_GPS_TARGET_HZ)
+
+    gpx_output = Path(tempfile.gettempdir()) / f"gpstitch_novatek_{video_path.stem}_{uuid.uuid4().hex[:8]}.gpx"
+    novatek_to_gpx_file(video_path, gpx_output, sample_rate, points=points)
+    return str(gpx_output)
+
+
 def generate_cli_command(
     session_id: str,
     output_file: str | None,
@@ -1872,6 +1968,26 @@ def generate_cli_command(
         ]
         if canvas_width and canvas_height:
             cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
+    elif (
+        primary_type == "video" and getattr(primary.video_metadata, "has_novatek_gps", False) is True and not secondary
+    ):
+        # Mode 5: dashcam video with embedded Novatek freeGPS blocks (Viofo et al).
+        # Like DJI meta: extract GPS -> GPX temp file -> --use-gpx-only, since the
+        # video has no GoPro metadata stream for gopro-dashboard to read.
+        novatek_gpx_path = _convert_novatek_to_gpx(Path(primary_path))
+        temp_files.append(novatek_gpx_path)
+        logger.info(f"Converted Novatek GPS to GPX: {novatek_gpx_path}")
+
+        cmd_parts = [
+            "gpstitch-dashboard",
+            shlex.quote(primary_path),
+            shlex.quote(output_file),
+            "--use-gpx-only",
+            f"--gpx {shlex.quote(novatek_gpx_path)}",
+            f"--video-time-start {shlex.quote('file-modified')}",
+        ]
+        if canvas_width and canvas_height:
+            cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
     else:
         # Mode 1: Video only (default - GoPro with embedded GPS)
         # Note: --video-time-start is not valid without --use-gpx-only
@@ -1958,6 +2074,10 @@ def generate_cli_command(
     # Pass DJI meta source path to wrapper for protobuf GPS loading.
     if getattr(primary.video_metadata, "has_dji_meta", False) is True and not secondary:
         cmd_parts.append(f"{TS_DJI_META_SOURCE_ARG} {shlex.quote(primary_path)}")
+
+    # Pass Novatek source path to wrapper for direct freeGPS loading.
+    if getattr(primary.video_metadata, "has_novatek_gps", False) is True and not secondary:
+        cmd_parts.append(f"{TS_NOVATEK_SOURCE_ARG} {shlex.quote(primary_path)}")
 
     # Pass odo offset for shared GPX batch render.
     # The wrapper strips this arg and patches calculate_odo() to start from offset.

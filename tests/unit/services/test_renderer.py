@@ -1782,7 +1782,16 @@ class TestGenerateCliCommandDjiMeta:
         monkeypatch.setattr(fm_module, "file_manager", manager)
         return manager
 
-    def _make_file_info(self, file_path, file_type, role, has_dji_meta=False, dji_meta_point_count=None):
+    def _make_file_info(
+        self,
+        file_path,
+        file_type,
+        role,
+        has_dji_meta=False,
+        dji_meta_point_count=None,
+        has_novatek_gps=False,
+        novatek_gps_point_count=None,
+    ):
         from gpstitch.models.schemas import FileInfo, VideoMetadata
 
         video_metadata = None
@@ -1796,6 +1805,8 @@ class TestGenerateCliCommandDjiMeta:
                 has_gps=False,
                 has_dji_meta=has_dji_meta,
                 dji_meta_point_count=dji_meta_point_count,
+                has_novatek_gps=has_novatek_gps,
+                novatek_gps_point_count=novatek_gps_point_count,
             )
 
         return FileInfo(
@@ -1838,6 +1849,87 @@ class TestGenerateCliCommandDjiMeta:
         assert "--video-time-start" in cmd
         assert "file-modified" in cmd
         assert "/tmp/gpstitch_djimeta_test_abc12345.gpx" in temp_files
+
+    @patch("gpstitch.services.renderer._convert_novatek_to_gpx")
+    def test_novatek_video_uses_gpx_only(self, mock_convert, mock_file_manager):
+        """Dashcam video with freeGPS blocks has no GoPro stream, so it needs --use-gpx-only."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        mock_convert.return_value = "/tmp/gpstitch_novatek_test_abc12345.gpx"
+
+        primary = self._make_file_info(
+            "/tmp/20260817144834_000115.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_novatek_gps=True,
+            novatek_gps_point_count=7,
+        )
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, temp_files = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--use-gpx-only" in cmd
+        assert "gpstitch_novatek_test_abc12345.gpx" in cmd
+        assert "--video-time-start" in cmd
+        assert "file-modified" in cmd
+        assert "/tmp/gpstitch_novatek_test_abc12345.gpx" in temp_files
+
+    @patch("gpstitch.services.renderer._convert_novatek_to_gpx")
+    def test_novatek_video_includes_wrapper_arg(self, mock_convert, mock_file_manager):
+        """The wrapper needs the source video to bypass the intermediate GPX."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        mock_convert.return_value = "/tmp/gpstitch_novatek_test.gpx"
+
+        primary = self._make_file_info(
+            "/tmp/20260817144834_000115.MP4",
+            "video",
+            FileRole.PRIMARY,
+            has_novatek_gps=True,
+            novatek_gps_point_count=7,
+        )
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--ts-novatek-source" in cmd
+        assert "/tmp/20260817144834_000115.MP4" in cmd
+
+    def test_plain_video_has_no_novatek_args(self, mock_file_manager):
+        """A GoPro video must keep Mode 1 — no GPX indirection."""
+        from gpstitch.models.schemas import FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = self._make_file_info("/tmp/GX010001.MP4", "video", FileRole.PRIMARY)
+
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+        cmd, _ = generate_cli_command(
+            session_id="test-session",
+            output_file="/tmp/output.mp4",
+            layout="default-1920x1080",
+        )
+
+        assert "--ts-novatek-source" not in cmd
+        assert "--use-gpx-only" not in cmd
 
     @patch("gpstitch.services.renderer._convert_dji_meta_to_gpx")
     def test_dji_meta_video_includes_wrapper_arg(self, mock_convert, mock_file_manager):

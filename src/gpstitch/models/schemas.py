@@ -33,6 +33,8 @@ class VideoMetadata(BaseModel):
     has_gps: bool
     has_dji_meta: bool = False
     dji_meta_point_count: int | None = None
+    has_novatek_gps: bool = False
+    novatek_gps_point_count: int | None = None
 
 
 class GpxFitMetadata(BaseModel):

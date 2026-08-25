@@ -35,6 +35,7 @@ TS_SRT_SOURCE_ARG = "--ts-srt-source"
 TS_SRT_VIDEO_ARG = "--ts-srt-video"
 TS_ODO_OFFSET_ARG = "--ts-odo-offset"
 TS_DJI_META_SOURCE_ARG = "--ts-dji-meta-source"
+TS_NOVATEK_SOURCE_ARG = "--ts-novatek-source"
 
 
 def find_gopro_dashboard() -> Path | None:
@@ -79,7 +80,13 @@ def _extract_custom_args() -> dict:
     Returns:
         Dict with keys: srt_path, video_path, odo_offset. Values may be None.
     """
-    result = {"srt_path": None, "video_path": None, "odo_offset": None, "dji_meta_source": None}
+    result = {
+        "srt_path": None,
+        "video_path": None,
+        "odo_offset": None,
+        "dji_meta_source": None,
+        "novatek_source": None,
+    }
     new_argv = []
     i = 0
     while i < len(sys.argv):
@@ -99,6 +106,9 @@ def _extract_custom_args() -> dict:
             i += 2
         elif arg == TS_DJI_META_SOURCE_ARG and i + 1 < len(sys.argv):
             result["dji_meta_source"] = sys.argv[i + 1]
+            i += 2
+        elif arg == TS_NOVATEK_SOURCE_ARG and i + 1 < len(sys.argv):
+            result["novatek_source"] = sys.argv[i + 1]
             i += 2
         else:
             new_argv.append(arg)
@@ -132,6 +142,13 @@ def main():
 
         patch_dji_meta_load(custom_args["dji_meta_source"])
         logger.info(f"DJI meta GPX patch applied: source={custom_args['dji_meta_source']}")
+
+    # Patch GPX loading to use Novatek freeGPS blocks directly (Viofo dashcams)
+    if custom_args["novatek_source"]:
+        from gpstitch.patches.gpx_patches import patch_novatek_load
+
+        patch_novatek_load(custom_args["novatek_source"])
+        logger.info(f"Novatek GPS patch applied: source={custom_args['novatek_source']}")
 
     # Patch calculate_odo to start from offset (for shared GPX batch render)
     if custom_args["odo_offset"] is not None:

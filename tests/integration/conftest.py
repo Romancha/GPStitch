@@ -10,6 +10,10 @@ import pytest
 # Value from: DJI_20250723102139_0001_D.MP4 recorded 2025-07-23, mtime = end of recording.
 _DJI_VIDEO_ORIGINAL_MTIME = datetime(2025, 7, 23, 7, 21, 42, tzinfo=UTC).timestamp()
 
+# Viofo fixture: recording ends 2026-08-17 14:48:40 local (UTC+8, Xi'an) per the
+# embedded freeGPS timestamps, i.e. 06:48:40 UTC.
+_VIOFO_VIDEO_ORIGINAL_MTIME = datetime(2026, 8, 17, 6, 48, 40, tzinfo=UTC).timestamp()
+
 
 @pytest.fixture(scope="module")
 def integration_test_video():
@@ -41,6 +45,20 @@ def integration_test_run_gpx():
     path = Path(TEST_RUN_GPX_PATH)
     if not path.exists():
         pytest.skip(f"Integration test GPX not found: {path}")
+    return path
+
+
+@pytest.fixture(scope="module")
+def integration_test_viofo_video():
+    """Viofo dashcam video with embedded Novatek freeGPS telemetry (issue #27)."""
+    from tests.fixtures.data import TEST_VIOFO_VIDEO_PATH
+
+    path = Path(TEST_VIOFO_VIDEO_PATH)
+    if not path.exists():
+        pytest.skip(f"Integration test Viofo video not found: {path}")
+    # Restore original mtime that git clone does not preserve — the render path
+    # aligns dashcam GPS to the video via --video-time-start file-modified.
+    os.utime(path, (_VIOFO_VIDEO_ORIGINAL_MTIME, _VIOFO_VIDEO_ORIGINAL_MTIME))
     return path
 
 
