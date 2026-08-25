@@ -760,6 +760,14 @@ class RenderService:
         # Disable Python output buffering to ensure all output is captured
         env["PYTHONUNBUFFERED"] = "1"
 
+        # Force UTF-8 mode in the child (issue #27). The render subprocess runs the same
+        # gopro_overlay code as the web server, so it needs the same protection from a
+        # non-UTF-8 OS locale (e.g. cp936 on a Chinese Windows) — in-process patches do
+        # not reach it. UTF-8 mode also makes open() default to UTF-8 everywhere else in
+        # the child, and PYTHONIOENCODING matches how we decode its output here.
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+
         # Set PYTHONPATH to include project root
         current_file = Path(__file__)
         project_root = current_file.parents[3]

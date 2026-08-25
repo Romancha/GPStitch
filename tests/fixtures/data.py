@@ -40,6 +40,30 @@ SAMPLE_GPX_CONTENT = """<?xml version="1.0" encoding="UTF-8"?>
   </trk>
 </gpx>"""
 
+# GPX exactly as written by IGPSPORT (and OpenTracks): UTF-8 BOM + non-ASCII track
+# name. Kept as bytes so the BOM survives — reading it with a non-UTF-8 locale codec
+# is what breaks in issue #27.
+BOM_GPX_BYTES = (
+    b"\xef\xbb\xbf"
+    b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    b'<gpx version="1.1" creator="IGPSPORT" xmlns="http://www.topografix.com/GPX/1/1">\n'
+    b"  <trk>\n"
+    b"    <name>\xe6\x88\xb7\xe5\xa4\x96\xe9\xaa\x91\xe8\xa1\x8c</name>\n"
+    b"    <trkseg>\n"
+    b'      <trkpt lat="34.1745849698782" lon="108.89914001338184">\n'
+    b"        <ele>435</ele>\n"
+    b"        <time>2026-08-19T15:02:44.000Z</time>\n"
+    b"      </trkpt>\n"
+    b'      <trkpt lat="34.17472000233829" lon="108.89919156208634">\n'
+    b"        <ele>436</ele>\n"
+    b"        <time>2026-08-19T15:02:46.000Z</time>\n"
+    b"      </trkpt>\n"
+    b"    </trkseg>\n"
+    b"  </trk>\n"
+    b"</gpx>\n"
+)
+
+
 # Test video paths (included in repo)
 TEST_VIDEO_PATH = str(Path(__file__).parent / "videos" / "raw_gopro_with_telemetry.MP4")
 TEST_VIDEO_PATH_2 = str(Path(__file__).parent / "videos" / "raw_gopro_with_telemetry_2.MP4")

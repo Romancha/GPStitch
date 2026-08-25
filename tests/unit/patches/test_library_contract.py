@@ -9,6 +9,8 @@ Covered patches:
 - metric_patches.py  → TestMetricAccessorContract
 - ffmpeg_gopro_patches.py   → TestFFMPEGGoProContract
 - ffmpeg_overlay_patches.py → TestFFMPEGOverlayVideoContract
+- encoding_patches.py       → TestFFMPEGInvokeContract, TestGpxLoadContract,
+                              TestLoadXmlLayoutContract, TestConfigContract
 """
 
 import inspect
@@ -302,3 +304,146 @@ class TestFFMPEGOverlayVideoContract:
         assert hasattr(opts, "general"), "options must have general"
         assert hasattr(opts, "input"), "options must have input"
         assert hasattr(opts, "output"), "options must have output"
+
+
+class TestFFMPEGInvokeContract:
+    """Verify gopro_overlay.ffmpeg API that encoding_patches.py depends on.
+
+    The patch wraps FFMPEG.invoke() to force encoding="utf-8" and relies on:
+    - invoke() accepting arbitrary **kwargs that reach subprocess.run
+    - run() being a SEPARATE method, so the binary video pipe stays untouched
+    - ffprobe()/ffmpeg() propagating invoke_fn to the new instance
+    """
+
+    def test_invoke_accepts_arbitrary_kwargs(self):
+        """invoke(args, **kwargs) must forward kwargs — that is how we inject encoding."""
+        from gopro_overlay.ffmpeg import FFMPEG
+
+        sig = inspect.signature(FFMPEG.invoke)
+        params = list(sig.parameters.values())
+        assert any(p.kind is inspect.Parameter.VAR_KEYWORD for p in params), (
+            f"FFMPEG.invoke must accept **kwargs, got {[p.name for p in params]}"
+        )
+
+    def test_invoke_forwards_kwargs_to_invoke_fn(self):
+        from gopro_overlay.ffmpeg import FFMPEG
+
+        invoke_fn = Mock(return_value=Mock(stdout=""))
+        FFMPEG(invoke_fn=invoke_fn).invoke(["-version"], marker="sentinel")
+
+        assert invoke_fn.call_args.kwargs.get("marker") == "sentinel"
+
+    def test_run_is_a_separate_method(self):
+        """run() pipes raw video bytes; the patch must be able to leave it alone."""
+        from gopro_overlay.ffmpeg import FFMPEG
+
+        assert FFMPEG.run is not FFMPEG.invoke
+
+    def test_invoke_fn_is_an_init_default(self):
+        """The reason we patch the method, not gopro_overlay.process.invoke.
+
+        invoke_fn is bound as a default argument at class-definition time, so
+        replacing the module attribute would not affect instances created later.
+        """
+        from gopro_overlay.ffmpeg import FFMPEG
+
+        sig = inspect.signature(FFMPEG.__init__)
+        assert "invoke_fn" in sig.parameters
+        assert sig.parameters["invoke_fn"].default is not inspect.Parameter.empty
+
+    def test_ffprobe_propagates_invoke_fn(self):
+        """ffprobe() builds a new FFMPEG — patching the class covers it, but only
+        if the child keeps using the same invoke_fn plumbing."""
+        from gopro_overlay.ffmpeg import FFMPEG
+
+        invoke_fn = Mock(return_value=Mock(stdout=""))
+        parent = FFMPEG(invoke_fn=invoke_fn)
+
+        assert parent.ffprobe().invoke_fn is invoke_fn
+        assert parent.ffmpeg().invoke_fn is invoke_fn
+
+
+class TestGpxLoadContract:
+    """Verify gopro_overlay.gpx API that encoding_patches.py depends on.
+
+    The patch replaces gpx.load() and delegates to gpx.load_xml().
+    """
+
+    def test_load_exists_with_expected_signature(self):
+        from gopro_overlay import gpx
+
+        sig = inspect.signature(gpx.load)
+        params = list(sig.parameters.keys())
+        assert params[:2] == ["filepath", "units"], f"Expected (filepath, units), got {params}"
+
+    def test_load_xml_exists_and_accepts_a_text_stream(self):
+        """Our replacement hands load_xml an open text file object."""
+        import io
+
+        from gopro_overlay import gpx
+        from gopro_overlay.units import units
+
+        gpx_text = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<gpx version="1.1" creator="Test" xmlns="http://www.topografix.com/GPX/1/1">\n'
+            "  <trk><trkseg>\n"
+            '    <trkpt lat="55.0" lon="37.0"><ele>1</ele><time>2024-01-01T12:00:00Z</time></trkpt>\n'
+            "  </trkseg></trk>\n"
+            "</gpx>\n"
+        )
+
+        assert len(gpx.load_xml(io.StringIO(gpx_text), units)) == 1
+
+    def test_load_timeseries_goes_through_module_level_load(self):
+        """load_timeseries must resolve `load` at call time, or replacing the
+        module attribute would not affect it."""
+        from gopro_overlay import gpx
+
+        source = inspect.getsource(gpx.load_timeseries)
+        assert "load(" in source, "load_timeseries no longer delegates to load()"
+
+
+class TestLoadXmlLayoutContract:
+    """Verify gopro_overlay.layout_xml.load_xml_layout that encoding_patches.py replaces."""
+
+    def test_load_xml_layout_exists_with_expected_signature(self):
+        from gopro_overlay.layout_xml import load_xml_layout
+
+        sig = inspect.signature(load_xml_layout)
+        assert list(sig.parameters.keys())[:1] == ["filepath"]
+
+    def test_packaged_layouts_are_resolvable_by_name(self):
+        """Our replacement keeps the importlib.resources fallback branch."""
+        from importlib.resources import files
+
+        from gopro_overlay import layouts
+
+        names = {p.name for p in files(layouts).iterdir()}
+        assert "default-1920x1080.xml" in names
+
+
+class TestConfigContract:
+    """Verify gopro_overlay.config API that encoding_patches.py depends on.
+
+    The patch replaces Config.maybe() and constructs ConfigFile directly.
+    """
+
+    def test_config_has_location_and_maybe(self):
+        from gopro_overlay.config import Config
+
+        sig = inspect.signature(Config.maybe)
+        assert list(sig.parameters.keys())[:2] == ["self", "name"]
+        assert "location" in inspect.signature(Config.__init__).parameters
+
+    def test_config_file_accepts_content_and_location(self):
+        from gopro_overlay.config import ConfigFile
+
+        config_file = ConfigFile(content={"a": 1}, location=Path("/tmp/x.json"))
+
+        assert config_file.content == {"a": 1}
+        assert config_file.location == Path("/tmp/x.json")
+
+    def test_maybe_returns_empty_config_for_missing_file(self, tmp_path):
+        from gopro_overlay.config import Config
+
+        assert Config(tmp_path).maybe("does-not-exist.json").content is None

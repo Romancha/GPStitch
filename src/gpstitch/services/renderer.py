@@ -169,7 +169,7 @@ def _layout_requires_cairo(name: str) -> bool:
     local_path = Path(__file__).parent.parent / "layouts" / f"{name}.xml"
     if local_path.exists():
         try:
-            content = local_path.read_text()
+            content = local_path.read_text(encoding="utf-8", errors="replace")
             return "cairo" in content.lower()
         except OSError:
             return False
@@ -182,7 +182,7 @@ def _layout_requires_cairo(name: str) -> bool:
 
         ref = files(gopro_layouts) / f"{name}.xml"
         with as_file(ref) as path:
-            content = path.read_text()
+            content = path.read_text(encoding="utf-8", errors="replace")
             return "cairo" in content.lower()
     except Exception:
         return False

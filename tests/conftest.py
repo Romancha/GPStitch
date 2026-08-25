@@ -265,3 +265,27 @@ def widget_factory():
 def layout_factory():
     """Factory for creating EditorLayout."""
     return create_editor_layout
+
+
+@pytest.fixture
+def spy_encoding(monkeypatch):
+    """Record the ``encoding`` kwarg of calls to ``target.attr``, calling through.
+
+    Used to assert that file reads pass an explicit encoding instead of falling
+    back to the OS locale codec (issue #27). Pass ``match`` to record only calls
+    whose first argument (the path) contains that substring.
+    """
+
+    def _spy(target, attr, match=None):
+        seen = {}
+        original = getattr(target, attr)
+
+        def spy(path, *args, **kwargs):
+            if match is None or match in str(path):
+                seen["encoding"] = kwargs.get("encoding")
+            return original(path, *args, **kwargs)
+
+        monkeypatch.setattr(target, attr, spy)
+        return seen
+
+    return _spy

@@ -5,6 +5,7 @@ without modifying the original library. Changes include:
 - Timecode extraction for Final Cut Pro compatibility
 - Enhanced FFmpeg options (audio copy, metadata preservation)
 - DJI camera metrics support (metric_accessor patch, always applied)
+- UTF-8 text/subprocess decoding instead of the OS locale encoding (issue #27)
 - DJI SRT→GPX load bypass (gpx_patches, applied conditionally via wrapper
   when --ts-srt-source is present — preserves camera metrics in video render)
 """
@@ -28,10 +29,12 @@ def apply_patches() -> None:
         logger.debug("Patches already applied, skipping")
         return
 
+    from gpstitch.patches.encoding_patches import patch_text_encoding
     from gpstitch.patches.ffmpeg_gopro_patches import patch_ffmpeg_gopro
     from gpstitch.patches.ffmpeg_overlay_patches import patch_ffmpeg_overlay
     from gpstitch.patches.metric_patches import patch_metric_accessor
 
+    patch_text_encoding()
     patch_ffmpeg_gopro()
     patch_ffmpeg_overlay()
     patch_metric_accessor()

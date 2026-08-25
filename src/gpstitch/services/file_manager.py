@@ -343,7 +343,7 @@ class FileManager:
             metadata_file = session_dir / ".metadata"
             if metadata_file.exists():
                 try:
-                    created_time = float(metadata_file.read_text())
+                    created_time = float(metadata_file.read_text(encoding="utf-8"))
                     if current_time - created_time > settings.file_ttl_seconds:
                         shutil.rmtree(session_dir)
                         cleaned += 1

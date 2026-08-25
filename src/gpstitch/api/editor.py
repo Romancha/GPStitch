@@ -280,7 +280,7 @@ def _load_predefined_layout(layout_name: str) -> EditorLayout:
     else:
         # Fall back to gopro-overlay package resources
         try:
-            with as_file(files(layouts) / f"{layout_name}.xml") as fn, open(fn) as f:
+            with as_file(files(layouts) / f"{layout_name}.xml") as fn, open(fn, encoding="utf-8") as f:
                 xml_content = f.read()
             layout = xml_converter.xml_to_layout(xml_content, layout_name)
         except FileNotFoundError as e:
