@@ -22,7 +22,7 @@ MOV_VIDEO = _FIXTURES / "IMG_2927.MOV"
 RUN_GPX = _FIXTURES / "hiking_activity.gpx"
 DJI_VIDEO = _FIXTURES / "DJI_20250723102139_0001_D.MP4"
 DJI_SRT = _FIXTURES / "DJI_20250723102139_0001_D.SRT"
-DJI_ACTION_VIDEO = _FIXTURES / "DJI_20260315180109_0003_D_5s_fixture.MP4"
+DJI_ACTION_VIDEO = _FIXTURES / "dji_osmo_action5_gps_remote_5s.MP4"
 
 
 def _load_video(page: Page, video_path: Path):

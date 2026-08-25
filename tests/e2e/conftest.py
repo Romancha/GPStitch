@@ -128,7 +128,7 @@ def _restore_dji_fixture_mtime():
     if dji_video.exists():
         os.utime(dji_video, (_DJI_VIDEO_ORIGINAL_MTIME, _DJI_VIDEO_ORIGINAL_MTIME))
 
-    dji_action_video = Path(__file__).parent.parent / "fixtures" / "videos" / "DJI_20260315180109_0003_D_5s_fixture.MP4"
+    dji_action_video = Path(__file__).parent.parent / "fixtures" / "videos" / "dji_osmo_action5_gps_remote_5s.MP4"
     if dji_action_video.exists():
         os.utime(dji_action_video, (_DJI_ACTION_VIDEO_ORIGINAL_MTIME, _DJI_ACTION_VIDEO_ORIGINAL_MTIME))
 

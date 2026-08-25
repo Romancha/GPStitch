@@ -30,7 +30,7 @@ from gpstitch.services.dji_meta_parser import (
 
 # --- Raw protobuf test data ---
 
-# First sample from fixture: DJI_20260315180109_0003_D_5s_fixture.MP4
+# First sample from fixture: dji_osmo_action5_gps_remote_5s.MP4
 # Contains GPS: lat=50.89076500000001, lon=6.6743936, alt=122745mm, timestamp="2026-03-15 23:58:14"
 # velocity: vx=-1.5, vy=10.5
 SAMPLE_0_HEX = (
