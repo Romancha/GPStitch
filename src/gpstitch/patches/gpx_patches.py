@@ -1,11 +1,14 @@
-"""Patch gopro_overlay to load SRT data directly instead of intermediate GPX.
+"""Patch gopro_overlay GPX decoding and direct SRT/DJI telemetry loading.
+
+GPX files are read as bytes so their UTF-8 encoding is independent of the
+operating system's default text encoding.
 
 When rendering video with DJI SRT telemetry, the SRT is converted to GPX for
 CLI compatibility. GPX only carries GPS data — camera metrics (iso, fnum, ev,
 ct, shutter, focal_len) are lost. This patch intercepts load_external() to
 load the original SRT file with all camera metrics preserved.
 
-Applied conditionally by the wrapper script when --ts-srt-source is present.
+The SRT patch is applied conditionally by the wrapper when --ts-srt-source is present.
 """
 
 import logging
@@ -14,6 +17,27 @@ from datetime import UTC
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def patch_gpx_encoding() -> None:
+    """Let the GPX parser decode file bytes instead of using the system locale."""
+    import gopro_overlay.gpx as gpx_module
+
+    if getattr(gpx_module, "_ts_gpx_encoding_patched", False):
+        return
+
+    original_load = gpx_module.load
+
+    def patched_load(filepath: Path, units):
+        # Compressed GPX files are already opened in binary mode by the library.
+        if filepath.suffix == ".gz":
+            return original_load(filepath, units)
+        with filepath.open("rb") as gpx_file:
+            return gpx_module.load_xml(gpx_file, units)
+
+    gpx_module.load = patched_load
+    gpx_module._ts_gpx_encoding_patched = True
+    logger.info("Patched GPX loading to decode independently of the system locale")
 
 
 def patch_gpx_load_for_srt(srt_path: str, video_path: str | None = None) -> None:
