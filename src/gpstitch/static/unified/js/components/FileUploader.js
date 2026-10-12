@@ -288,6 +288,10 @@ class FileUploader {
         try {
             const formData = new FormData();
             formData.append('file', file);
+            // Preserve original mtime - DJI SRT time alignment depends on it
+            if (file.lastModified) {
+                formData.append('last_modified', String(file.lastModified));
+            }
 
             let response;
 
