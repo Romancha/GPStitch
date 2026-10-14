@@ -84,18 +84,20 @@ def extract_video_metadata(file_path: Path) -> VideoMetadata | None:
         except Exception:
             logger.debug("DJI meta detection skipped for %s", file_path)
 
-        # Detect embedded Novatek freeGPS telemetry (Viofo and other dashcams)
+        # Detect embedded Novatek freeGPS telemetry (Viofo and other dashcams).
+        # GoPro and DJI files already have their GPS source, so don't scan them.
         has_novatek_gps = False
         novatek_gps_point_count = None
-        try:
-            from gpstitch.services.novatek_parser import get_novatek_gps_metadata
+        if not has_gps and not has_dji_meta:
+            try:
+                from gpstitch.services.novatek_parser import get_novatek_gps_metadata
 
-            novatek_meta = get_novatek_gps_metadata(file_path)
-            if novatek_meta:
-                novatek_gps_point_count = novatek_meta.get("gps_point_count", 0)
-                has_novatek_gps = novatek_gps_point_count > 0
-        except Exception:
-            logger.debug("Novatek GPS detection skipped for %s", file_path)
+                novatek_meta = get_novatek_gps_metadata(file_path)
+                if novatek_meta:
+                    novatek_gps_point_count = novatek_meta.get("gps_point_count", 0)
+                    has_novatek_gps = novatek_gps_point_count > 0
+            except Exception:
+                logger.debug("Novatek GPS detection skipped for %s", file_path)
 
         return VideoMetadata(
             width=display_w,

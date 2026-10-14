@@ -5,6 +5,7 @@ Tests all supported file combinations with real test fixtures:
 - MOV video + external GPX
 - DJI video + SRT telemetry (auto-detected)
 - DJI Action video with embedded GPS (DJI meta stream)
+- Viofo dashcam video with embedded GPS (Novatek freeGPS blocks)
 """
 
 import contextlib
@@ -23,6 +24,7 @@ RUN_GPX = _FIXTURES / "hiking_activity.gpx"
 DJI_VIDEO = _FIXTURES / "DJI_20250723102139_0001_D.MP4"
 DJI_SRT = _FIXTURES / "DJI_20250723102139_0001_D.SRT"
 DJI_ACTION_VIDEO = _FIXTURES / "dji_osmo_action5_gps_remote_5s.MP4"
+VIOFO_VIDEO = _FIXTURES / "viofo_freegps_fixture.MP4"
 
 
 def _load_video(page: Page, video_path: Path):
@@ -301,6 +303,22 @@ class TestDjiSrtRenderPipeline:
         assert "--use-gpx-only" in cmd_text, f"DJI+SRT command must include --use-gpx-only, got:\n{cmd_text}"
         assert "--gpx" in cmd_text, "Command must include --gpx flag"
         assert ".gpx" in cmd_text, "SRT should be converted to GPX"
+
+
+@pytest.mark.e2e
+class TestNovatekGpsBadge:
+    """Viofo/Novatek dashcam video with embedded freeGPS blocks."""
+
+    def test_novatek_gps_badge_shown_on_upload(self, app_page: Page):
+        """Load Viofo video -> GPS badge is shown without a secondary file."""
+        if not VIOFO_VIDEO.exists():
+            pytest.skip(f"Test fixture not found: {VIOFO_VIDEO}")
+
+        _load_video(app_page, VIOFO_VIDEO)
+
+        gps_badge = app_page.locator(".gps-badge")
+        expect(gps_badge).to_be_visible(timeout=5000)
+        expect(gps_badge).to_have_text("GPS")
 
 
 @pytest.mark.e2e

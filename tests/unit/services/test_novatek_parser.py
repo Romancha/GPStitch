@@ -213,6 +213,97 @@ class TestFindBlocks:
 
         assert find_novatek_gps_blocks(path) == []
 
+    @pytest.mark.parametrize("largesize", [False, True])
+    def test_index_box_is_found_in_a_trailing_moov(self, tmp_path, largesize):
+        """Dashcams write moov last, past a multi-GB mdat — the index must still be read.
+
+        The scan fallback is stubbed out, so only the atom walk can find the blocks.
+        """
+        from unittest.mock import patch
+
+        from gpstitch.services.novatek_parser import find_novatek_gps_blocks
+
+        blocks = [make_block(second=s) for s in (33, 35, 36)]
+        padding = b"\x00" * (2 * 1024 * 1024)
+        ftyp = struct.pack(">I4s", 16, b"ftyp") + b"mp42" + struct.pack(">I", 0)
+        if largesize:
+            mdat_header = struct.pack(">I4sQ", 1, b"mdat", 16 + len(padding) + len(blocks) * BLOCK_SIZE)
+        else:
+            mdat_header = struct.pack(">I4s", 8 + len(padding) + len(blocks) * BLOCK_SIZE, b"mdat")
+        blocks_start = len(ftyp) + len(mdat_header) + len(padding)
+        index = struct.pack(">I4sII", 16 + 8 * len(blocks), b"gps ", 0x101, len(blocks)) + b"".join(
+            struct.pack(">II", blocks_start + i * BLOCK_SIZE, BLOCK_SIZE) for i in range(len(blocks))
+        )
+        moov = struct.pack(">I4s", 8 + len(index), b"moov") + index
+
+        path = tmp_path / "trailing_moov.MP4"
+        path.write_bytes(ftyp + mdat_header + padding + b"".join(blocks) + moov)
+
+        with patch("gpstitch.services.novatek_parser._scan_for_blocks", return_value=[]):
+            found = find_novatek_gps_blocks(path)
+
+        assert found == [(blocks_start + i * BLOCK_SIZE, BLOCK_SIZE) for i in range(3)]
+
+    def test_scan_gives_up_without_a_block_in_the_probe_window(self, tmp_path):
+        """A non-Novatek video must not be read to the end just to find nothing."""
+        from gpstitch.services.novatek_parser import _scan_for_blocks
+
+        path = tmp_path / "late_block.MP4"
+        path.write_bytes(b"\x00" * (3 * 1024 * 1024) + make_block())
+
+        assert _scan_for_blocks(path, probe_limit=2 * 1024 * 1024) == []
+        assert len(_scan_for_blocks(path, probe_limit=4 * 1024 * 1024)) == 1
+
+    def test_scan_keeps_going_once_a_block_is_found(self, tmp_path):
+        from gpstitch.services.novatek_parser import _scan_for_blocks
+
+        path = tmp_path / "spread.MP4"
+        path.write_bytes(make_block(second=33) + b"\x00" * (3 * 1024 * 1024) + make_block(second=34))
+
+        assert len(_scan_for_blocks(path, probe_limit=1024 * 1024)) == 2
+
+    def test_scan_does_not_report_a_magic_ending_on_a_chunk_boundary_twice(self, tmp_path):
+        from gpstitch.services.novatek_parser import _SCAN_CHUNK, FREEGPS_MAGIC, _scan_for_blocks
+
+        block_start = _SCAN_CHUNK - 4 - len(FREEGPS_MAGIC)
+        path = tmp_path / "boundary.MP4"
+        path.write_bytes(b"\x00" * block_start + make_block())
+
+        assert _scan_for_blocks(path) == [(block_start, 60)]
+
+
+class TestParseCache:
+    """One upload/preview/render cycle parses the same file several times."""
+
+    def test_repeated_parses_read_the_file_once(self, novatek_mp4):
+        from unittest.mock import patch
+
+        from gpstitch.services import novatek_parser
+
+        novatek_parser._parse_novatek_gps_file_cached.cache_clear()
+        path = novatek_mp4([make_block(second=33), make_block(second=34)])
+
+        with patch.object(
+            novatek_parser, "find_novatek_gps_blocks", wraps=novatek_parser.find_novatek_gps_blocks
+        ) as find:
+            first = novatek_parser.parse_novatek_gps_file(path)
+            second = novatek_parser.parse_novatek_gps_file(path)
+
+        assert find.call_count == 1
+        assert first == second and len(first) == 2
+        assert first is not second  # callers get their own list
+
+    def test_a_changed_file_is_parsed_again(self, novatek_mp4):
+        from gpstitch.services import novatek_parser
+
+        novatek_parser._parse_novatek_gps_file_cached.cache_clear()
+        path = novatek_mp4([make_block(second=33)])
+        assert len(novatek_parser.parse_novatek_gps_file(path)) == 1
+
+        novatek_mp4([make_block(second=33), make_block(second=34)])
+
+        assert len(novatek_parser.parse_novatek_gps_file(path)) == 2
+
 
 class TestParseFile:
     """End-to-end parsing against the real Viofo blocks from issue #27."""

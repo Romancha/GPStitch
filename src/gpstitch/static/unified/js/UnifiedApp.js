@@ -583,8 +583,8 @@ class UnifiedApp {
             resEl.textContent = vm.width && vm.height ? `${vm.width}x${vm.height}` : '';
             fpsEl.textContent = vm.frame_rate ? `${vm.frame_rate.toFixed(0)} FPS` : '';
             durEl.textContent = vm.duration_seconds ? this.state.formatTime(vm.duration_seconds * 1000) : '';
-            // Show GPS badge if video has GPS (GoPro embedded or DJI meta) or if secondary GPX/FIT is attached
-            const hasGps = vm.has_gps || vm.has_dji_meta || secondaryFile;
+            // Show GPS badge if video has GPS (GoPro embedded, DJI meta or Novatek freeGPS) or if secondary GPX/FIT is attached
+            const hasGps = vm.has_gps || vm.has_dji_meta || vm.has_novatek_gps || secondaryFile;
             gpsEl.textContent = hasGps ? 'GPS' : '';
             gpsEl.style.display = hasGps ? '' : 'none';
         } else if (primaryFile.gpx_fit_metadata) {

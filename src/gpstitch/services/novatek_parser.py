@@ -9,9 +9,16 @@ being a `free` atom whose payload starts with the `GPS ` marker.
 Two ways to find them, tried in that order:
 
 1. A `gps ` box in moov listing absolute (offset, size) pairs — present on the
-   cameras that write an index, and O(1) to read.
+   cameras that write an index. moov is located by walking the top-level atoms,
+   so the cost does not depend on the file size (dashcams write moov last).
 2. A chunked scan of the file for the `freeGPS` magic — slower, but covers
-   cameras that write no index and files that have been trimmed.
+   cameras that write no index and files that have been trimmed. The blocks are
+   interleaved with the video about once a second, so a file with none in its
+   first `_SCAN_PROBE` bytes is taken to carry none: every uploaded video goes
+   through detection, and a multi-GB GoPro or DJI file must not be read in full.
+
+Parsed points are cached per (path, mtime, size): one upload/preview/render
+cycle asks for the same file several times.
 
 Block layout (all multi-byte values little-endian unless noted):
 
@@ -27,8 +34,10 @@ Every field is range-checked before a block is accepted: an unrecognised
 freeGPS variant must be skipped, never decoded into plausible-looking garbage.
 """
 
+import functools
 import logging
 import math
+import os
 import struct
 from dataclasses import dataclass
 from datetime import datetime
@@ -47,9 +56,11 @@ GPS_INDEX_BOX = b"gps "
 _HEADER_SIZE = 60  # bytes we need from the start of a block
 _KNOTS_TO_MS = 1852 / 3600
 _SCAN_CHUNK = 1 << 20  # 1 MiB
+_SCAN_PROBE = 32 << 20  # give up the scan if no block shows up this far in
+_MAX_MOOV_SIZE = 64 << 20  # sanity cap; real moov boxes are a few MiB at most
 
 
-@dataclass
+@dataclass(frozen=True)
 class NovatekGpsPoint:
     """A single GPS telemetry point from a Novatek `freeGPS` block."""
 
@@ -115,52 +126,95 @@ def parse_novatek_block(data: bytes) -> NovatekGpsPoint | None:
 # --- Block discovery ---
 
 
-def _read_gps_index_box(file_path: Path) -> list[tuple[int, int]]:
-    """Read the `gps ` box from moov, returning absolute (offset, size) pairs.
+def _find_moov(f, file_size: int) -> tuple[int, int] | None:
+    """Walk the top-level atoms and return moov's (offset, size), or None.
 
-    The box is a flat table, so it is cheaper to find it by scanning the (small)
-    moov region than to walk the full atom tree.
+    Stops at the first malformed header instead of guessing, so a file that is
+    not an MP4 at all costs a single read.
     """
-    try:
-        with file_path.open("rb") as f:
-            head = f.read(_SCAN_CHUNK)
-    except OSError:
-        return []
+    offset = 0
+    while offset + 8 <= file_size:
+        f.seek(offset)
+        header = f.read(16)
+        if len(header) < 8:
+            return None
 
-    entries: list[tuple[int, int]] = []
+        size, box_type = struct.unpack(">I4s", header[:8])
+        header_size = 8
+        if size == 1:  # 64-bit largesize follows the type
+            if len(header) < 16:
+                return None
+            size = struct.unpack(">Q", header[8:16])[0]
+            header_size = 16
+        elif size == 0:  # box extends to the end of the file
+            size = file_size - offset
+
+        if size < header_size:
+            return None
+        if box_type == b"moov":
+            return offset, size
+        offset += size
+    return None
+
+
+def _parse_gps_index_box(moov: bytes, file_name: str) -> list[tuple[int, int]]:
+    """Find the `gps ` box inside moov's bytes and decode its (offset, size) table.
+
+    The box is a flat table, so a byte search is simpler than walking moov's
+    children; the size/count cross-check rejects accidental `gps ` matches.
+    """
     search_from = 0
     while True:
-        marker = head.find(GPS_INDEX_BOX, search_from)
+        marker = moov.find(GPS_INDEX_BOX, search_from)
         if marker < 4:
-            return entries
+            return []
         search_from = marker + 4
 
-        box_size = struct.unpack(">I", head[marker - 4 : marker])[0]
+        box_size = struct.unpack(">I", moov[marker - 4 : marker])[0]
         count_at = marker + 8
-        if box_size < 16 or count_at + 4 > len(head):
+        if box_size < 16 or count_at + 4 > len(moov):
             continue
 
-        count = struct.unpack(">I", head[count_at : count_at + 4])[0]
+        count = struct.unpack(">I", moov[count_at : count_at + 4])[0]
         if box_size != 16 + 8 * count or count == 0:
             continue
 
-        table = head[marker + 12 : marker - 4 + box_size]
+        table = moov[marker + 12 : marker - 4 + box_size]
         if len(table) != 8 * count:
             continue
 
-        entries = [struct.unpack(">II", table[i * 8 : i * 8 + 8]) for i in range(count)]
-        logger.debug("Found gps index box in %s with %d entries", file_path.name, count)
-        return entries
+        logger.debug("Found gps index box in %s with %d entries", file_name, count)
+        return [struct.unpack(">II", table[i * 8 : i * 8 + 8]) for i in range(count)]
 
 
-def _scan_for_blocks(file_path: Path) -> list[tuple[int, int]]:
-    """Scan the whole file for the `freeGPS` magic.
+def _read_gps_index_box(file_path: Path) -> list[tuple[int, int]]:
+    """Read the `gps ` box from moov, returning absolute (offset, size) pairs."""
+    try:
+        with file_path.open("rb") as f:
+            moov = _find_moov(f, os.fstat(f.fileno()).st_size)
+            if moov is None:
+                return []
+            moov_offset, moov_size = moov
+            if moov_size > _MAX_MOOV_SIZE:
+                logger.debug("moov in %s is %d bytes, not reading it", file_path.name, moov_size)
+                return []
+            f.seek(moov_offset)
+            moov_bytes = f.read(moov_size)
+    except OSError:
+        return []
 
-    Chunks overlap by the magic length so a block straddling a chunk boundary is
-    still found.
+    return _parse_gps_index_box(moov_bytes, file_path.name)
+
+
+def _scan_for_blocks(file_path: Path, probe_limit: int = _SCAN_PROBE) -> list[tuple[int, int]]:
+    """Scan the file for the `freeGPS` magic.
+
+    Chunks overlap by one byte less than the magic, so a block straddling a chunk
+    boundary is found exactly once. The scan gives up after `probe_limit` bytes
+    without a single block — see the module docstring.
     """
     offsets: list[tuple[int, int]] = []
-    overlap = len(FREEGPS_MAGIC)
+    overlap = len(FREEGPS_MAGIC) - 1
 
     try:
         with file_path.open("rb") as f:
@@ -176,6 +230,9 @@ def _scan_for_blocks(file_path: Path) -> list[tuple[int, int]]:
                         offsets.append((block_start, _HEADER_SIZE))
                     start = found + 1
                 base += len(chunk)
+                if not offsets and base >= probe_limit:
+                    logger.debug("No freeGPS block in the first %d bytes of %s", base, file_path.name)
+                    return []
                 carry = window[-overlap:] if len(window) >= overlap else window
     except OSError as e:
         logger.warning("Could not scan %s for freeGPS blocks: %s", file_path, e)
@@ -208,30 +265,41 @@ def parse_novatek_gps_file(file_path: Path) -> list[NovatekGpsPoint]:
     callers treat that as "no embedded telemetry", not as an error.
     """
     file_path = Path(file_path)
+    try:
+        stat = file_path.stat()
+    except OSError:
+        return []
+    return list(_parse_novatek_gps_file_cached(str(file_path.resolve()), stat.st_mtime_ns, stat.st_size))
+
+
+@functools.lru_cache(maxsize=32)
+def _parse_novatek_gps_file_cached(path: str, mtime_ns: int, size: int) -> tuple[NovatekGpsPoint, ...]:
+    """Parse a file once per (path, mtime, size); the stat fields only key the cache."""
+    file_path = Path(path)
     blocks = find_novatek_gps_blocks(file_path)
     if not blocks:
-        return []
+        return ()
 
     points: list[NovatekGpsPoint] = []
     skipped = 0
     try:
         with file_path.open("rb") as f:
-            for offset, size in blocks:
+            for offset, block_size in blocks:
                 f.seek(offset)
-                point = parse_novatek_block(f.read(min(size, _HEADER_SIZE)))
+                point = parse_novatek_block(f.read(min(block_size, _HEADER_SIZE)))
                 if point is None:
                     skipped += 1
                 else:
                     points.append(point)
     except OSError as e:
         logger.warning("Could not read freeGPS blocks from %s: %s", file_path, e)
-        return []
+        return ()
 
     if skipped:
         logger.debug("Skipped %d unusable freeGPS blocks in %s", skipped, file_path.name)
 
     points.sort(key=lambda p: p.timestamp)
-    return points
+    return tuple(points)
 
 
 def detect_novatek_gps(file_path: Path) -> bool:

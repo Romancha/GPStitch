@@ -386,8 +386,10 @@ class RenderService:
         layout_xml = config.layout_xml_path
         needs_cairo = False
         if layout_xml:
-            with contextlib.suppress(OSError):
-                needs_cairo = "cairo" in Path(layout_xml).read_text(encoding="utf-8").lower()
+            # A layout saved in a non-UTF-8 codec must not escape here: the job
+            # slot is already claimed, and an exception would wedge the queue.
+            with contextlib.suppress(OSError, ValueError):
+                needs_cairo = "cairo" in Path(layout_xml).read_text(encoding="utf-8", errors="replace").lower()
         else:
             needs_cairo = _layout_requires_cairo(layout_name)
 

@@ -30,6 +30,8 @@ def analyze_gps_quality(file_path: Path) -> GPSQualityReport | None:
     For GoPro videos with GPMF data, performs full DOP-based quality analysis.
     For DJI Action videos with embedded DJI meta GPS, returns None since DJI meta
     has no DOP data and quality analysis would be meaningless (same as SRT).
+    Novatek dashcam videos (freeGPS blocks) have no DOP data either, so they
+    also return None rather than a "no signal" report.
 
     Args:
         file_path: Path to the video file
@@ -88,6 +90,17 @@ def analyze_gps_quality(file_path: Path) -> GPSQualityReport | None:
         return _build_report(total_points, locked_points, dop_values)
 
     except OSError as e:
+        # No GPMF stream. Novatek dashcams keep their GPS in freeGPS blocks instead;
+        # checked only here so GoPro files never pay for the Novatek scan.
+        try:
+            from gpstitch.services.novatek_parser import detect_novatek_gps
+
+            if detect_novatek_gps(file_path):
+                logger.debug(f"Skipping GPS quality analysis for Novatek dashcam video: {file_path}")
+                return None
+        except Exception:
+            logger.debug(f"Novatek GPS detection failed for {file_path}", exc_info=True)
+
         # Video doesn't have GPS data stream
         logger.warning(f"No GPS data in video: {e}")
         return GPSQualityReport(

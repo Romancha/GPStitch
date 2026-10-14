@@ -371,3 +371,36 @@ class TestNeedsPillarboxUsesSidecarCanvas:
         canvas_w, canvas_h, video_w, video_h = result
         assert (canvas_w, canvas_h) == (3840, 2880)
         assert (video_w, video_h) == (3840, 2160)
+
+
+class TestStartRenderNonUtf8Layout:
+    """A custom layout saved in a non-UTF-8 codec (e.g. GBK from Notepad on Chinese
+    Windows) used to raise UnicodeDecodeError out of start_render() after the job slot
+    was claimed, wedging the render queue until a server restart."""
+
+    async def test_cairo_check_survives_a_non_utf8_layout(self, tmp_path):
+        from gpstitch.models.job import JobStatus
+        from gpstitch.services.render_service import RenderService
+
+        xml_path = tmp_path / "custom.xml"
+        xml_path.write_bytes('<layout><component type="cairo-circuit-map" name="地图"/></layout>'.encode("gbk"))
+
+        service = RenderService()
+        service._start_next_pending_job = AsyncMock()
+        config = MagicMock(layout="xml", layout_xml_path=str(xml_path))
+
+        with (
+            patch("gpstitch.services.render_service.generate_cli_command", return_value=("cmd", [])),
+            patch("gpstitch.constants.is_pycairo_available", return_value=False),
+            patch("gpstitch.services.render_service.job_manager") as jm,
+        ):
+            jm.update_job_status = AsyncMock()
+            jm.append_job_log = AsyncMock()
+            await service.start_render("job-1", config)
+
+        # The cairo check still ran on the decoded text and failed the job cleanly...
+        jm.update_job_status.assert_awaited_once()
+        assert jm.update_job_status.await_args.args[:2] == ("job-1", JobStatus.FAILED)
+        # ...and released the slot for the next job.
+        assert service._current_job_id is None
+        service._start_next_pending_job.assert_awaited_once()

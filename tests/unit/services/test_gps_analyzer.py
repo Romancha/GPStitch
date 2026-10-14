@@ -311,3 +311,39 @@ class TestAnalyzeGpsQualityDjiAction:
             # which also fails → returns None
             result = analyze_gps_quality(Path("/fake/broken.mp4"))
             assert result is None
+
+
+class TestAnalyzeGpsQualityNovatek:
+    """Novatek dashcam videos have no GPMF stream and no DOP data."""
+
+    def _analyze(self, *, is_novatek):
+        with (
+            patch("gpstitch.services.dji_meta_parser.detect_dji_meta_stream", return_value=None),
+            patch("gopro_overlay.ffmpeg.FFMPEG", side_effect=OSError("Unable to locate metadata stream")),
+            patch("gpstitch.services.novatek_parser.detect_novatek_gps", return_value=is_novatek) as detect,
+        ):
+            return analyze_gps_quality(Path("/fake/dashcam.MP4")), detect
+
+    def test_novatek_video_returns_none(self):
+        """Batch pre-check must report "unknown", not a spurious "no signal"."""
+        result, detect = self._analyze(is_novatek=True)
+
+        assert result is None
+        detect.assert_called_once()
+
+    def test_video_without_any_gps_still_reports_no_signal(self):
+        result, _ = self._analyze(is_novatek=False)
+
+        assert result is not None
+        assert result.quality_score == "no_signal"
+
+    def test_novatek_detection_failure_falls_back_to_no_signal(self):
+        with (
+            patch("gpstitch.services.dji_meta_parser.detect_dji_meta_stream", return_value=None),
+            patch("gopro_overlay.ffmpeg.FFMPEG", side_effect=OSError("Unable to locate metadata stream")),
+            patch("gpstitch.services.novatek_parser.detect_novatek_gps", side_effect=RuntimeError("boom")),
+        ):
+            result = analyze_gps_quality(Path("/fake/dashcam.MP4"))
+
+        assert result is not None
+        assert result.quality_score == "no_signal"

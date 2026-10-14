@@ -37,6 +37,18 @@ class TestMetadataDetection:
         assert meta is not None
         assert meta.has_novatek_gps is False
 
+    def test_gopro_video_skips_the_novatek_scan(self, integration_test_video):
+        """A GoPro file already has GPMF GPS — don't spend a file scan on it."""
+        from unittest.mock import patch
+
+        from gpstitch.services.metadata import extract_video_metadata
+
+        with patch("gpstitch.services.novatek_parser.get_novatek_gps_metadata") as novatek:
+            meta = extract_video_metadata(integration_test_video)
+
+        assert meta is not None and meta.has_gps is True
+        novatek.assert_not_called()
+
     def test_video_without_gps_is_not_flagged(self, integration_test_mov_video):
         from gpstitch.services.metadata import extract_video_metadata
 
@@ -44,6 +56,15 @@ class TestMetadataDetection:
 
         assert meta is not None
         assert meta.has_novatek_gps is False
+
+
+class TestGpsQualityAnalysis:
+    """Batch pre-check calls analyze_gps_quality() for every video."""
+
+    def test_novatek_video_is_not_reported_as_no_signal(self, integration_test_viofo_video):
+        from gpstitch.services.gps_analyzer import analyze_gps_quality
+
+        assert analyze_gps_quality(integration_test_viofo_video) is None
 
 
 class TestPreviewFramemeta:
