@@ -1,5 +1,29 @@
 # Release Notes
 
+## Version 0.19.0 — 14 Oct 2026
+
+### 🎉 Major Features
+
+**Novatek Dashcam Embedded GPS Support**
+
+Viofo and other dashcams built on Novatek chipsets (Azdome, Blueskysea and others) store GPS inside the video file — GPStitch now reads it directly, so no external GPX is needed. Previously these videos failed with "Unable to locate metadata stream — is it a GoPro file". ([#27](https://github.com/Romancha/GPStitch/issues/27))
+
+- **Automatic detection** — Embedded GPS is recognised on upload and shown with the GPS badge
+- **End-to-end pipeline** — Preview, render, and CLI command generation all work with the dashcam's own track
+- **External files still win** — An attached GPX/FIT file takes precedence over the embedded GPS, as with other cameras
+
+### ✨ Improvements
+
+- Tests now run against FFmpeg 9.0 — the version current package managers install — instead of an outdated 7.0 build
+
+### 🐞 Fixes
+
+- Fixed preview and render failing on Windows with a non-UTF-8 system locale (e.g. Chinese Windows) — video paths with non-ASCII characters broke ffprobe output parsing, and UTF-8 GPX files with a BOM (IGPSPORT, OpenTracks) failed to load ([#27](https://github.com/Romancha/GPStitch/issues/27))
+- Fixed a custom layout file in an unexpected text encoding blocking the render queue until the server was restarted
+- Fixed video creation time not being read with FFmpeg 9, which reports duplicate metadata tags (e.g. in iPhone videos) joined with `;` — time sync fell back to the file date, and preview of a video with an external GPX could fail
+
+---
+
 ## Version 0.18.0 — 25 Jun 2026
 
 ### 🆕 New
