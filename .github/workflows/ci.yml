@@ -7,10 +7,10 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
 
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libcairo2-dev
@@ -25,10 +25,10 @@ jobs:
         run: uv run ruff format --check src tests
 
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
 
       - uses: ./.github/actions/setup-ffmpeg
 
