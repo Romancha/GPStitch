@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -18,7 +18,7 @@ from gpstitch.constants import (
 )
 
 
-class PropertyType(str, Enum):
+class PropertyType(StrEnum):
     """Supported property types."""
 
     NUMBER = "number"
@@ -30,7 +30,7 @@ class PropertyType(str, Enum):
     UNITS = "units"
 
 
-class WidgetCategory(str, Enum):
+class WidgetCategory(StrEnum):
     """Widget categories for organization."""
 
     TEXT = "text"

@@ -1,6 +1,6 @@
 """Pydantic request/response models for GPStitch API."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -15,7 +15,7 @@ from gpstitch.constants import (
 )
 
 
-class FileRole(str, Enum):
+class FileRole(StrEnum):
     """Role of a file in the session."""
 
     PRIMARY = "primary"  # Main video or GPX/FIT for overlay-only mode

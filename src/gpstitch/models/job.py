@@ -1,7 +1,7 @@
 """Job domain models for render tasks."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -16,7 +16,7 @@ from gpstitch.constants import (
 )
 
 
-class JobStatus(str, Enum):
+class JobStatus(StrEnum):
     """Job execution status."""
 
     PENDING = "pending"  # Queued, not started
@@ -26,7 +26,7 @@ class JobStatus(str, Enum):
     CANCELLED = "cancelled"  # User cancelled
 
 
-class JobType(str, Enum):
+class JobType(StrEnum):
     """Type of job."""
 
     RENDER = "render"
