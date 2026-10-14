@@ -34,8 +34,25 @@ pytestmark = [
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
+def _path_expr(path: Path) -> str:
+    """A Python expression for `path` that survives the child's ASCII locale.
+
+    On Linux an ASCII locale also makes the filesystem encoding ASCII, so a str
+    path with non-ASCII characters cannot be passed to open() or a subprocess
+    there. Decoding the raw bytes in the child yields a surrogate-escaped str that
+    encodes back to the same bytes (on macOS the filesystem encoding is always
+    UTF-8, so it is a plain str).
+    """
+    return f"os.fsdecode({os.fsencode(path)!r})"
+
+
 def _run_in_ascii_locale(code: str, apply_patches: bool = True):
     """Run `code` in a child interpreter whose locale encoding is ASCII."""
+    # On Linux the child decodes its own command line with the ASCII locale codec,
+    # so non-ASCII source text never compiles there. Use _path_expr() for paths and
+    # ascii() escapes for literals.
+    assert code.isascii(), "child code must be ASCII; see _path_expr()"
+
     env = {k: v for k, v in os.environ.items() if k not in ("LANG", "LC_CTYPE", "LC_ALL")}
     env.update(
         {
@@ -52,6 +69,7 @@ def _run_in_ascii_locale(code: str, apply_patches: bool = True):
         "assert locale.getencoding().lower().replace('-', '_') in ('ascii', 'us_ascii', 'ansi_x3.4_1968'), (\n"
         "    'child locale is not ASCII: ' + locale.getencoding())\n"
         "assert sys.flags.utf8_mode == 0, 'child is in UTF-8 mode'\n"
+        "import os\n"
     )
 
     return subprocess.run(
@@ -89,7 +107,7 @@ class TestGpxUnderNonUtf8Locale:
             f"from pathlib import Path\n"
             f"from gopro_overlay.loading import load_external\n"
             f"from gopro_overlay.units import units\n"
-            f"load_external(Path(r'{gpx_path}'), units)\n",
+            f"load_external(Path({_path_expr(gpx_path)}), units)\n",
             apply_patches=False,
         )
 
@@ -101,7 +119,7 @@ class TestGpxUnderNonUtf8Locale:
             f"from pathlib import Path\n"
             f"from gopro_overlay.loading import load_external\n"
             f"from gopro_overlay.units import units\n"
-            f"ts = load_external(Path(r'{gpx_path}'), units)\n"
+            f"ts = load_external(Path({_path_expr(gpx_path)}), units)\n"
             f"print('POINTS', len(ts.items()))\n"
         )
 
@@ -129,7 +147,7 @@ class TestFfprobeUnderNonUtf8Locale:
             f"from pathlib import Path\n"
             f"from gopro_overlay.ffmpeg import FFMPEG\n"
             f"from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro\n"
-            f"FFMPEGGoPro(FFMPEG()).find_recording(Path(r'{video_in_non_ascii_dir}'))\n",
+            f"FFMPEGGoPro(FFMPEG()).find_recording(Path({_path_expr(video_in_non_ascii_dir)}))\n",
             apply_patches=False,
         )
 
@@ -141,7 +159,7 @@ class TestFfprobeUnderNonUtf8Locale:
             f"from pathlib import Path\n"
             f"from gopro_overlay.ffmpeg import FFMPEG\n"
             f"from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro\n"
-            f"r = FFMPEGGoPro(FFMPEG()).find_recording(Path(r'{video_in_non_ascii_dir}'))\n"
+            f"r = FFMPEGGoPro(FFMPEG()).find_recording(Path({_path_expr(video_in_non_ascii_dir)}))\n"
             f"print('DIMENSION', r.video.dimension.x, r.video.dimension.y)\n"
         )
 
@@ -158,7 +176,7 @@ class TestFfprobeUnderNonUtf8Locale:
             f"import json\n"
             f"from gopro_overlay.ffmpeg import FFMPEG\n"
             f"out = FFMPEG().ffprobe().invoke(\n"
-            f"    ['-hide_banner', '-print_format', 'json', '-show_format', r'{video_in_non_ascii_dir}']\n"
+            f"    ['-hide_banner', '-print_format', 'json', '-show_format', {_path_expr(video_in_non_ascii_dir)}]\n"
             f").stdout\n"
             f"json.loads(str(out))\n",
             apply_patches=False,
@@ -172,10 +190,10 @@ class TestFfprobeUnderNonUtf8Locale:
             f"import json\n"
             f"from gopro_overlay.ffmpeg import FFMPEG\n"
             f"out = FFMPEG().ffprobe().invoke(\n"
-            f"    ['-hide_banner', '-print_format', 'json', '-show_format', r'{video_in_non_ascii_dir}']\n"
+            f"    ['-hide_banner', '-print_format', 'json', '-show_format', {_path_expr(video_in_non_ascii_dir)}]\n"
             f").stdout\n"
             f"data = json.loads(str(out))\n"
-            f"print('FILENAME_OK', '新建文件夹' in data['format']['filename'])\n"
+            f"print('FILENAME_OK', {'新建文件夹'!a} in data['format']['filename'])\n"
         )
 
         assert result.returncode == 0, result.stderr
@@ -186,7 +204,7 @@ class TestFfprobeUnderNonUtf8Locale:
         result = _run_in_ascii_locale(
             f"from pathlib import Path\n"
             f"from gpstitch.services.renderer import _extract_creation_time\n"
-            f"dt = _extract_creation_time(Path(r'{video_in_non_ascii_dir}'))\n"
+            f"dt = _extract_creation_time(Path({_path_expr(video_in_non_ascii_dir)}))\n"
             f"assert dt is not None, 'creation_time extraction returned None'\n"
             f"print('CREATION_TIME', dt.isoformat())\n"
         )
@@ -210,7 +228,7 @@ class TestLayoutXmlUnderNonUtf8Locale:
         result = _run_in_ascii_locale(
             f"from pathlib import Path\n"
             f"from gopro_overlay.layout_xml import load_xml_layout\n"
-            f"load_xml_layout(Path(r'{layout_path}'))\n",
+            f"load_xml_layout(Path({_path_expr(layout_path)}))\n",
             apply_patches=False,
         )
 
@@ -221,8 +239,8 @@ class TestLayoutXmlUnderNonUtf8Locale:
         result = _run_in_ascii_locale(
             f"from pathlib import Path\n"
             f"from gopro_overlay.layout_xml import load_xml_layout\n"
-            f"xml = load_xml_layout(Path(r'{layout_path}'))\n"
-            f"print('LOADED', '速度' in xml)\n"
+            f"xml = load_xml_layout(Path({_path_expr(layout_path)}))\n"
+            f"print('LOADED', {'速度'!a} in xml)\n"
         )
 
         assert result.returncode == 0, result.stderr
