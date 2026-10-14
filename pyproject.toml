@@ -29,7 +29,7 @@ dependencies = [
     "python-multipart>=0.0.22",
     "pydantic>=2.12.5",
     "pydantic-settings>=2.12.0",
-    "setuptools<82",
+    "setuptools<85",
 ]
 
 [project.optional-dependencies]
