@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 
 [[package]]
@@ -640,7 +640,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.128.0" },
-    { name = "gopro-overlay", specifier = ">=0.129.0" },
+    { name = "gopro-overlay", specifier = "==0.129.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
     { name = "pycairo", marker = "extra == 'cairo'", specifier = ">=1.28.0" },
     { name = "pydantic", specifier = ">=2.12.5" },
