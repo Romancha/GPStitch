@@ -12,6 +12,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # setuptools 82 removed pkg_resources, which geotiler (gopro-overlay's map
+      # widget) imports at module load; pyproject.toml pins setuptools<82 for it.
+      - dependency-name: setuptools
+        versions: [">=82"]
     groups:
       python-minor-patch:
         update-types: [minor, patch]
