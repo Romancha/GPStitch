@@ -377,13 +377,19 @@ class TestMetadataPreservationAfterRender:
 
         # Note: creation_time may differ from source because gopro-dashboard
         # sets it from GPS timestamp. Just verify it's present and valid ISO format.
-        try:
-            from datetime import datetime
+        from gpstitch.services.ffprobe_tags import parse_creation_time, split_tag_values
 
-            # Parse ISO format
-            datetime.fromisoformat(output_creation_time.replace("Z", "+00:00"))
-        except ValueError as e:
-            pytest.fail(f"Invalid creation_time format: {output_creation_time}: {e}")
+        assert parse_creation_time(output_creation_time) is not None, (
+            f"Invalid creation_time format: {output_creation_time}"
+        )
+
+        # +use_metadata_tags writes creation_time to both mvhd and an mdta key, which
+        # ffprobe 9+ reports joined with ';'. Both must be the same instant.
+        instants = [parse_creation_time(part) for part in split_tag_values(output_creation_time)]
+        assert None not in instants, f"Invalid creation_time part: {output_creation_time}"
+        assert (max(instants) - min(instants)).total_seconds() < 1, (
+            f"creation_time parts disagree: {output_creation_time}"
+        )
 
 
 @pytest.mark.integration

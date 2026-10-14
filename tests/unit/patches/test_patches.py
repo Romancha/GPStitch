@@ -76,6 +76,21 @@ class TestFFMPEGGoProPatch:
 
         assert timecode == "10:30:45:12"
 
+    def test_find_timecode_takes_the_first_of_joined_values(self):
+        """ffprobe 9+ joins duplicate tags with ';' — "a;b" is not a valid -timecode."""
+        from gpstitch.patches import apply_patches
+
+        apply_patches()
+
+        from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
+
+        mock_ffmpeg = Mock()
+        mock_ffmpeg.ffprobe.return_value.invoke.return_value.stdout = (
+            '{"streams": [{"tags": {"timecode": "10:30:45:12;10:30:45:12"}}]}'
+        )
+
+        assert FFMPEGGoPro(mock_ffmpeg).find_timecode(Path("test.mp4")) == "10:30:45:12"
+
     def test_find_timecode_returns_none_when_no_timecode(self):
         """Test that find_timecode returns None when no timecode in metadata."""
         from gpstitch.patches import apply_patches
@@ -204,6 +219,17 @@ class TestFFMPEGOverlayVideoPatch:
         # Should have _timecode attribute but it may be None
         assert hasattr(overlay, "_timecode")
         assert overlay._timecode is None
+
+    def test_auto_extracted_timecode_takes_the_first_of_joined_values(self):
+        """ffprobe 9+ joins duplicate tags with ';' — it must not reach -timecode as "a;b"."""
+        from gpstitch.patches.ffmpeg_overlay_patches import _extract_timecode_from_input
+
+        mock_ffmpeg = Mock()
+        mock_ffmpeg.ffprobe.return_value.invoke.return_value.stdout = (
+            '{"streams": [{"tags": {"timecode": "00:01:02:03;00:01:02:03"}}]}'
+        )
+
+        assert _extract_timecode_from_input(mock_ffmpeg, Path("input.mp4")) == "00:01:02:03"
 
 
 class TestMetricPatch:

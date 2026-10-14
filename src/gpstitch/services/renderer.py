@@ -37,6 +37,7 @@ from gpstitch.scripts.gopro_dashboard_wrapper import (
     TS_SRT_SOURCE_ARG,
     TS_SRT_VIDEO_ARG,
 )
+from gpstitch.services.ffprobe_tags import parse_creation_time
 
 logger = logging.getLogger(__name__)
 
@@ -593,9 +594,10 @@ def _extract_creation_time(file_path: Path) -> datetime.datetime | None:
         tags = data.get("format", {}).get("tags", {})
         creation_time_str = tags.get("creation_time")
         if creation_time_str:
-            dt = datetime.datetime.fromisoformat(creation_time_str.replace("Z", "+00:00"))
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=datetime.UTC)
+            dt = parse_creation_time(creation_time_str)
+            if dt is None:
+                # Callers silently fall back to the file's ctime, so make this visible.
+                logger.warning("Unparseable creation_time %r in %s", creation_time_str, file_path)
             return dt
     except Exception as e:
         logger.debug("Could not extract creation_time from %s: %s", file_path, e)

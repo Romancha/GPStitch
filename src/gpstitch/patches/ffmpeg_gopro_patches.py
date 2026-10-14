@@ -15,6 +15,8 @@ def patch_ffmpeg_gopro() -> None:
     """Add find_timecode method to FFMPEGGoPro class."""
     from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
 
+    from gpstitch.services.ffprobe_tags import first_tag_value
+
     # Check if already patched
     if hasattr(FFMPEGGoPro, "find_timecode"):
         logger.debug("FFMPEGGoPro.find_timecode already exists, skipping patch")
@@ -54,7 +56,7 @@ def patch_ffmpeg_gopro() -> None:
 
             if streams:
                 tags = streams[0].get("tags", {})
-                timecode = tags.get("timecode")
+                timecode = first_tag_value(tags.get("timecode"))
                 if timecode:
                     logger.debug(f"Found timecode in {filepath}: {timecode}")
                     return timecode

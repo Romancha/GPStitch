@@ -32,6 +32,8 @@ def _extract_timecode_from_input(ffmpeg_exe, input_path) -> str | None:
     """
     import json
 
+    from gpstitch.services.ffprobe_tags import first_tag_value
+
     try:
         # Use ffprobe to get video stream metadata
         ffprobe_output = str(
@@ -55,7 +57,7 @@ def _extract_timecode_from_input(ffmpeg_exe, input_path) -> str | None:
 
         if streams:
             tags = streams[0].get("tags", {})
-            timecode = tags.get("timecode")
+            timecode = first_tag_value(tags.get("timecode"))
             if timecode:
                 logger.info(f"Auto-extracted timecode from input: {timecode}")
                 return timecode

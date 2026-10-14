@@ -2383,3 +2383,46 @@ class TestGetAvailableFfmpegProfiles:
         mac_entries = [p for p in profiles if p["name"] == "mac"]
         assert len(mac_entries) == 1
         assert mac_entries[0]["is_builtin"] is False
+
+
+class TestExtractCreationTime:
+    """_extract_creation_time() feeds time sync, preview alignment and render mtime."""
+
+    def _extract(self, ffprobe_output):
+        from gpstitch.services.renderer import _extract_creation_time
+
+        mock_ffmpeg_cls = MagicMock()
+        mock_ffmpeg_cls.return_value.ffprobe.return_value.invoke.return_value.stdout = json.dumps(ffprobe_output)
+        with patch("gopro_overlay.ffmpeg.FFMPEG", mock_ffmpeg_cls):
+            return _extract_creation_time(Path("/fake/video.mov"))
+
+    def test_single_value(self):
+        result = self._extract({"format": {"tags": {"creation_time": "2024-08-08T16:52:19.000000Z"}}})
+
+        assert result == datetime.datetime(2024, 8, 8, 16, 52, 19, tzinfo=datetime.UTC)
+
+    def test_ffmpeg9_joined_duplicate_value(self):
+        """ffprobe 9 joins duplicate tags with ';' — this used to return None (→ "file-created")."""
+        value = "2024-08-08T16:52:19.000000Z;2024-08-08T16:52:19.000000Z"
+
+        result = self._extract({"format": {"tags": {"creation_time": value}}})
+
+        assert result == datetime.datetime(2024, 8, 8, 16, 52, 19, tzinfo=datetime.UTC)
+
+    def test_missing_tag_is_none(self):
+        assert self._extract({"format": {"tags": {}}}) is None
+
+    def test_unparseable_value_is_none_and_warns(self, caplog):
+        with caplog.at_level("WARNING", logger="gpstitch.services.renderer"):
+            result = self._extract({"format": {"tags": {"creation_time": "not a date"}}})
+
+        assert result is None
+        assert "Unparseable creation_time 'not a date'" in caplog.text
+
+    def test_ffprobe_failure_is_none(self):
+        from gpstitch.services.renderer import _extract_creation_time
+
+        mock_ffmpeg_cls = MagicMock()
+        mock_ffmpeg_cls.return_value.ffprobe.return_value.invoke.side_effect = RuntimeError("ffprobe failed")
+        with patch("gopro_overlay.ffmpeg.FFMPEG", mock_ffmpeg_cls):
+            assert _extract_creation_time(Path("/fake/video.mov")) is None
