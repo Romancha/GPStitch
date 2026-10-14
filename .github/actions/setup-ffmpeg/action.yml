@@ -1,0 +1,28 @@
+name: Set up FFmpeg
+description: >
+  Install a pinned FFmpeg release branch from BtbN/FFmpeg-Builds, so CI tests the
+  same major version users run. The build is the branch's rolling latest (patch
+  releases only); bump `version` deliberately when moving to a new major.
+
+inputs:
+  version:
+    description: FFmpeg release branch, e.g. "9.0"
+    default: "9.0"
+
+runs:
+  using: composite
+  steps:
+    - name: Install FFmpeg ${{ inputs.version }}
+      shell: bash
+      env:
+        FFMPEG_VERSION: ${{ inputs.version }}
+      run: |
+        name="ffmpeg-n${FFMPEG_VERSION}-latest-linux64-gpl-${FFMPEG_VERSION}"
+        curl -fsSL --retry 3 \
+          "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/${name}.tar.xz" \
+          | tar -xJ -C "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/${name}/bin" >> "$GITHUB_PATH"
+
+    - name: Show FFmpeg version
+      shell: bash
+      run: ffmpeg -version | head -1 && ffprobe -version | head -1
