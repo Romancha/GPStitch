@@ -1,9 +1,18 @@
 name: E2E Tests
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_call:
+  workflow_dispatch:
+
+# Inside a release, github.workflow and github.event_name are the caller's, so the
+# group name is fixed per file, and only push/PR runs cancel a superseded run.
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
 
 jobs:
   e2e:
