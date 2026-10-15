@@ -1,5 +1,13 @@
 # Release Notes
 
+## Version 0.19.1 — 15 Oct 2026
+
+### 🐞 Fixes
+
+- Fixed render crashing with `IndexError` for clips whose GPS track is shorter than about 3 seconds — fresh installs picked up gopro-overlay 0.133+, which introduced this regression; GPStitch now pins gopro-overlay to the tested 0.129.0
+
+---
+
 ## Version 0.19.0 — 14 Oct 2026
 
 ### 🎉 Major Features
