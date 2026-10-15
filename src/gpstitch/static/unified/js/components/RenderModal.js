@@ -79,6 +79,7 @@ class RenderModal {
                     </div>
                     <div class="modal-footer">
                         <button id="render-cancel-btn" class="btn btn-secondary">Cancel</button>
+                        <a id="render-download-btn" class="btn btn-primary" style="display: none;" download>Download</a>
                         <button id="render-close-btn" class="btn btn-primary" style="display: none;">Close</button>
                     </div>
                 </div>
@@ -100,6 +101,7 @@ class RenderModal {
         this.logToggleBtn = document.getElementById('render-log-toggle');
         this.cancelBtn = document.getElementById('render-cancel-btn');
         this.closeBtn = document.getElementById('render-close-btn');
+        this.downloadBtn = document.getElementById('render-download-btn');
         this.modalCloseBtn = document.getElementById('render-modal-close');
     }
 
@@ -264,6 +266,7 @@ class RenderModal {
         this.logToggleBtn.textContent = 'Hide';
         this.cancelBtn.style.display = 'inline-block';
         this.closeBtn.style.display = 'none';
+        this.downloadBtn.style.display = 'none';
         this.modalCloseBtn.style.display = 'none';
     }
 
@@ -438,6 +441,8 @@ class RenderModal {
     _showComplete() {
         this.progressBar.classList.add('success');
         this.cancelBtn.style.display = 'none';
+        this.downloadBtn.href = `/api/render/download/${this.jobId}`;
+        this.downloadBtn.style.display = 'inline-block';
         this.closeBtn.style.display = 'inline-block';
         this.modalCloseBtn.style.display = 'block';
     }

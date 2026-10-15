@@ -8,8 +8,10 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, field_validator
 
+from gpstitch.config import settings
 from gpstitch.constants import (
     DEFAULT_GPS_DOP_MAX,
     DEFAULT_GPS_SPEED_MAX,
@@ -27,6 +29,25 @@ from gpstitch.services.render_service import render_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def default_output_path(session_id: str, primary_path: str, ext: str) -> str:
+    """Default render output path for a session's primary file.
+
+    Local sessions render next to the source file. Uploaded files live in a temporary
+    session dir, so their renders go to settings.output_dir with a non-clobbering name.
+    """
+    primary_name = os.path.splitext(os.path.basename(primary_path))[0]
+    if file_manager.is_local_session(session_id):
+        return os.path.join(os.path.dirname(primary_path), f"{primary_name}_overlay{ext}")
+
+    settings.output_dir.mkdir(parents=True, exist_ok=True)
+    candidate = settings.output_dir / f"{primary_name}_overlay{ext}"
+    counter = 1
+    while candidate.exists():
+        candidate = settings.output_dir / f"{primary_name}_overlay_{counter}{ext}"
+        counter += 1
+    return str(candidate)
 
 
 # Request/Response models
@@ -304,10 +325,8 @@ async def start_render(request: RenderJobRequest, background_tasks: BackgroundTa
     if not output_file:
         from gpstitch.services.renderer import get_output_extension_for_profile
 
-        primary_dir = os.path.dirname(primary.file_path)
-        primary_name = os.path.splitext(os.path.basename(primary.file_path))[0]
         ext = get_output_extension_for_profile(request.ffmpeg_profile)
-        output_file = os.path.join(primary_dir, f"{primary_name}_overlay{ext}")
+        output_file = default_output_path(request.session_id, primary.file_path, ext)
 
     # Create job config
     config = RenderJobConfig(
@@ -367,6 +386,23 @@ async def get_job_status(job_id: str) -> JobStatusResponse:
         completed_at=job.completed_at.isoformat() if job.completed_at else None,
         error=job.error,
     )
+
+
+@router.get("/render/download/{job_id}")
+async def download_output(job_id: str) -> FileResponse:
+    """Download the output file of a completed render job."""
+
+    job = await job_manager.get_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status.value != "completed":
+        raise HTTPException(status_code=409, detail="Render is not completed")
+
+    output_path = Path(job.config.output_file)
+    if not output_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Output file not found: {output_path}")
+
+    return FileResponse(output_path, filename=output_path.name)
 
 
 @router.get("/render/logs/{job_id}", response_model=JobLogsResponse)
