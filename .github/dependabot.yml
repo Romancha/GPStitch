@@ -12,6 +12,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Raise the lower bounds in pyproject.toml along with uv.lock, so they always
+    # name the versions CI tested. The default treats gpstitch as a library and
+    # touches only the lockfile while the old floor still admits the new release.
+    versioning-strategy: increase
     ignore:
       # setuptools 82 removed pkg_resources, which geotiler (gopro-overlay's map
       # widget) imports at module load; pyproject.toml pins setuptools<82 for it.
