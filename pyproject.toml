@@ -23,7 +23,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "gopro-overlay==0.129.0",
+    "gopro-overlay==0.134.0",
     "fastapi>=0.143.0",
     "uvicorn[standard]>=0.40.0",
     "python-multipart>=0.0.32",
