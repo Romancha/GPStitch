@@ -211,6 +211,7 @@ class CommandRequest(BaseModel):
     map_style: str | None = None
     gpx_fit_options: GpxFitOptions | None = None  # GPX/FIT merge options
     ffmpeg_profile: str | None = None  # FFmpeg encoding profile
+    smooth_animation: bool = False  # Draw overlay at video frame rate instead of 10 FPS
 
 
 class CommandResponse(BaseModel):

@@ -841,6 +841,11 @@ body {
     margin-bottom: var(--space-2);
 }
 
+.config-group .checkbox-label {
+    display: flex;
+    margin-bottom: 0;
+}
+
 .config-row {
     display: grid;
     grid-template-columns: 1fr 1fr;

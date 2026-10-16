@@ -33,6 +33,7 @@ class UnifiedApp {
         this.mapStyleSelect = document.getElementById('map-style');
         this.ffmpegProfileSelect = document.getElementById('ffmpeg-profile');
         this.ffmpegProfileHint = document.getElementById('ffmpeg-profile-hint');
+        this.smoothAnimationCheckbox = document.getElementById('smooth-animation');
 
         // GPS filter inputs
         this.gpsDopMaxInput = document.getElementById('gps-dop-max');
@@ -321,6 +322,12 @@ class UnifiedApp {
             const newProfile = this.ffmpegProfileSelect.value;
             this.state.updateQuickConfig({ ffmpegProfile: newProfile });
             this._updateFfmpegProfileHint(newProfile);
+        });
+
+        // Smooth animation (no preview needed, only affects render)
+        this.smoothAnimationCheckbox.checked = this.state.quickConfig.smoothAnimation === true;
+        this.smoothAnimationCheckbox.addEventListener('change', () => {
+            this.state.updateQuickConfig({ smoothAnimation: this.smoothAnimationCheckbox.checked });
         });
 
         // GPS DOP Max change
@@ -1012,7 +1019,8 @@ class UnifiedApp {
                 units_distance: config.unitsDistance || 'km',
                 units_temperature: config.unitsTemperature || 'degC',
                 map_style: config.mapStyle || 'osm',
-                ffmpeg_profile: this.state.quickConfig.ffmpegProfile || null
+                ffmpeg_profile: this.state.quickConfig.ffmpegProfile || null,
+                smooth_animation: this.state.quickConfig.smoothAnimation === true
             };
 
             // Add GPX/FIT options if applicable

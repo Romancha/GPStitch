@@ -217,4 +217,5 @@ class TestWrapperArgExtraction:
         assert result["srt_path"] is None
         assert result["video_path"] is None
         assert result["odo_offset"] is None
+        assert result["overlay_fps"] is None
         assert sys.argv == ["wrapper.py", "--layout", "default"]

@@ -300,3 +300,29 @@ class TestBatchRenderOdoOffset:
         # Per-file GPX overrides shared, so odo_offset should be None
         job = await job_manager.get_job(data["job_ids"][0])
         assert job.config.odo_offset is None
+
+
+class TestBatchRenderSmoothAnimation:
+    """smooth_animation in a batch request reaches every job config."""
+
+    @pytest.mark.anyio
+    @pytest.mark.parametrize("smooth_animation", [True, False])
+    async def test_stored_in_job_config(self, async_client, temp_dir, smooth_animation):
+        videos = []
+        for i in range(2):
+            path = temp_dir / f"smooth_{i}.mp4"
+            path.write_bytes(b"fake video")
+            videos.append(path)
+
+        response = await async_client.post(
+            "/api/render/batch",
+            json={"files": [{"video_path": str(v)} for v in videos], "smooth_animation": smooth_animation},
+        )
+
+        assert response.status_code == 200
+
+        from gpstitch.services.job_manager import job_manager
+
+        for job_id in response.json()["job_ids"]:
+            job = await job_manager.get_job(job_id)
+            assert job.config.smooth_animation is smooth_animation

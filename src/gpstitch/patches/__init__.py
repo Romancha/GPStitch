@@ -8,6 +8,10 @@ without modifying the original library. Changes include:
 - UTF-8 text/subprocess decoding instead of the OS locale encoding (issue #27)
 - DJI SRT→GPX load bypass (gpx_patches, applied conditionally via wrapper
   when --ts-srt-source is present — preserves camera metrics in video render)
+- Odometer start offset (odo_patches, applied conditionally via wrapper
+  when --ts-odo-offset is present — shared GPX batch render)
+- Smooth animation (overlay_fps_patches, applied conditionally via wrapper
+  when --ts-overlay-fps is present — overlay drawn at the video frame rate)
 """
 
 import logging

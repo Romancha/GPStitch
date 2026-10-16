@@ -6,6 +6,8 @@ Adds timecode parameter and enhanced FFmpeg options:
 - Metadata preservation (-map_metadata 0)
 - Streaming optimization (-movflags +faststart+use_metadata_tags)
 - Timecode preservation (-timecode) for Final Cut Pro
+- Raw overlay input rate (-framerate) from FFMPEGOverlayVideo._ts_overlay_fps,
+  10 FPS as in the original unless overlay_fps_patches sets the video frame rate
 
 Key feature: Auto-extracts timecode from input video if not explicitly provided.
 This allows timecode preservation without modifying gopro-dashboard.py.
@@ -16,6 +18,8 @@ import logging
 import re
 
 from gopro_overlay.ffmpeg_overlay import flatten
+
+from gpstitch.constants import DEFAULT_OVERLAY_FPS
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +141,7 @@ def patch_ffmpeg_overlay() -> None:
         - Preserves metadata (-map_metadata 0)
         - Adds streaming optimization (-movflags +faststart+use_metadata_tags)
         - Adds timecode if provided (-timecode)
+        - Takes -framerate from _ts_overlay_fps instead of the hardcoded 10.0
         """
         filter_complex = self.options.filter_complex
 
@@ -164,7 +169,7 @@ def patch_ffmpeg_overlay() -> None:
                 "-f",
                 "rawvideo",
                 "-framerate",
-                "10.0",  # hardcoded as in original
+                str(self._ts_overlay_fps),
                 "-s",
                 f"{self.overlay_size.x}x{self.overlay_size.y}",
                 "-pix_fmt",
@@ -196,6 +201,7 @@ def patch_ffmpeg_overlay() -> None:
     # Apply the patches
     FFMPEGOverlayVideo.__init__ = patched_init
     FFMPEGOverlayVideo.generate = patched_generate
+    FFMPEGOverlayVideo._ts_overlay_fps = DEFAULT_OVERLAY_FPS  # Raw overlay input rate, see overlay_fps_patches
     FFMPEGOverlayVideo._ts_patched = True  # Mark as patched
 
     logger.debug("Patched FFMPEGOverlayVideo with timecode support and enhanced FFmpeg options")

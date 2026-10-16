@@ -7,6 +7,7 @@ applying patches for:
 - Enhanced FFmpeg options (audio copy, metadata preservation)
 - DJI SRT camera metrics preservation (when --ts-srt-source is provided)
 - Odometer offset for shared GPX batch render (when --ts-odo-offset is provided)
+- Smooth animation: overlay drawn at a given frame rate (when --ts-overlay-fps is provided)
 
 Usage:
     python gopro_dashboard_wrapper.py [gopro-dashboard.py arguments...]
@@ -18,6 +19,7 @@ The wrapper:
 """
 
 import logging
+import math
 import runpy
 import shutil
 import sys
@@ -36,6 +38,7 @@ TS_SRT_VIDEO_ARG = "--ts-srt-video"
 TS_ODO_OFFSET_ARG = "--ts-odo-offset"
 TS_DJI_META_SOURCE_ARG = "--ts-dji-meta-source"
 TS_NOVATEK_SOURCE_ARG = "--ts-novatek-source"
+TS_OVERLAY_FPS_ARG = "--ts-overlay-fps"
 
 
 def find_gopro_dashboard() -> Path | None:
@@ -78,7 +81,8 @@ def _extract_custom_args() -> dict:
     to gopro-dashboard.py (it would error on unknown args).
 
     Returns:
-        Dict with keys: srt_path, video_path, odo_offset. Values may be None.
+        Dict with keys: srt_path, video_path, odo_offset, dji_meta_source,
+        novatek_source, overlay_fps. Values may be None.
     """
     result = {
         "srt_path": None,
@@ -86,6 +90,7 @@ def _extract_custom_args() -> dict:
         "odo_offset": None,
         "dji_meta_source": None,
         "novatek_source": None,
+        "overlay_fps": None,
     }
     new_argv = []
     i = 0
@@ -109,6 +114,16 @@ def _extract_custom_args() -> dict:
             i += 2
         elif arg == TS_NOVATEK_SOURCE_ARG and i + 1 < len(sys.argv):
             result["novatek_source"] = sys.argv[i + 1]
+            i += 2
+        elif arg == TS_OVERLAY_FPS_ARG and i + 1 < len(sys.argv):
+            try:
+                fps = float(sys.argv[i + 1])
+            except ValueError:
+                fps = 0.0
+            if not (math.isfinite(fps) and fps > 0):
+                logger.error("Invalid %s value: %s (expected a positive number)", TS_OVERLAY_FPS_ARG, sys.argv[i + 1])
+                sys.exit(1)
+            result["overlay_fps"] = fps
             i += 2
         else:
             new_argv.append(arg)
@@ -156,6 +171,13 @@ def main():
 
         patch_calculate_odo(custom_args["odo_offset"])
         logger.info(f"Odo offset patch applied: {custom_args['odo_offset']} meters")
+
+    # Draw the overlay at the requested frame rate instead of the fixed 10 FPS
+    if custom_args["overlay_fps"] is not None:
+        from gpstitch.patches.overlay_fps_patches import patch_overlay_fps
+
+        patch_overlay_fps(custom_args["overlay_fps"])
+        logger.info(f"Overlay FPS patch applied: {custom_args['overlay_fps']} FPS")
 
     # Find the original gopro-dashboard.py
     dashboard_script = find_gopro_dashboard()

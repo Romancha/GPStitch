@@ -161,7 +161,8 @@ class RenderModal {
                 time_offset_seconds: this.state.quickConfig.timeOffsetSeconds || 0,
                 ffmpeg_profile: this.state.quickConfig.ffmpegProfile || null,
                 gps_dop_max: this.state.quickConfig.gpsDopMax || 20,
-                gps_speed_max: this.state.quickConfig.gpsSpeedMax || 200
+                gps_speed_max: this.state.quickConfig.gpsSpeedMax || 200,
+                smooth_animation: this.state.quickConfig.smoothAnimation === true
             };
 
             // Determine output file path for checking

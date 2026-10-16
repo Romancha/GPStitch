@@ -220,6 +220,30 @@ class TestFFMPEGOverlayVideoPatch:
         assert hasattr(overlay, "_timecode")
         assert overlay._timecode is None
 
+    def test_generate_streams_overlay_at_10_fps(self):
+        """Without smooth animation the raw overlay input keeps gopro-overlay's 10 FPS."""
+        from gpstitch.patches import apply_patches
+
+        apply_patches()
+
+        from gopro_overlay.dimensions import Dimension
+        from gopro_overlay.ffmpeg_overlay import FFMPEGOverlayVideo
+
+        mock_ffmpeg = Mock()
+        mock_ffmpeg.execute.return_value = iter([Mock()])
+        overlay = FFMPEGOverlayVideo(
+            ffmpeg=mock_ffmpeg,
+            input=Path("input.mp4"),
+            output=Path("output.mp4"),
+            overlay_size=Dimension(1920, 1080),
+            timecode="00:00:00:00",
+        )
+        with overlay.generate():
+            pass
+
+        cmd = mock_ffmpeg.execute.call_args.args[1]
+        assert cmd[cmd.index("-framerate") + 1] == "10.0"
+
     def test_auto_extracted_timecode_takes_the_first_of_joined_values(self):
         """ffprobe 9+ joins duplicate tags with ';' — it must not reach -timecode as "a;b"."""
         from gpstitch.patches.ffmpeg_overlay_patches import _extract_timecode_from_input
@@ -416,6 +440,27 @@ class TestExtractCustomArgs:
         assert result["srt_path"] == "/srt.srt"
         assert result["dji_meta_source"] == "/dji.mp4"
         assert sys.argv == ["script", "--gpx", "t.gpx"]
+
+    def test_extracts_overlay_fps(self, monkeypatch):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(sys, "argv", ["script", "in.mp4", "out.mp4", "--ts-overlay-fps", "29.97003"])
+        result = _extract_custom_args()
+        assert result["overlay_fps"] == 29.97003
+        assert sys.argv == ["script", "in.mp4", "out.mp4"]
+
+    @pytest.mark.parametrize("value", ["abc", "0", "-30", "nan", "inf"])
+    def test_invalid_overlay_fps_exits(self, monkeypatch, value):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(sys, "argv", ["script", "--ts-overlay-fps", value])
+        with pytest.raises(SystemExit) as exc_info:
+            _extract_custom_args()
+        assert exc_info.value.code == 1
 
 
 class TestConfigIntegration:

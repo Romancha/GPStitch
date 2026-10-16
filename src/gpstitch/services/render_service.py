@@ -369,6 +369,7 @@ class RenderService:
                 gps_dop_max=config.gps_dop_max,
                 gps_speed_max=config.gps_speed_max,
                 odo_offset=config.odo_offset,
+                smooth_animation=config.smooth_animation,
             )
         except Exception as e:
             error_msg = f"Failed to generate command: {e}"

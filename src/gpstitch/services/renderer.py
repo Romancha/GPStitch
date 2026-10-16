@@ -22,10 +22,13 @@ from gpstitch.constants import (
     DEFAULT_GPS_DOP_MAX,
     DEFAULT_GPS_SPEED_MAX,
     DEFAULT_GPS_TARGET_HZ,
+    DEFAULT_OVERLAY_FPS,
     DEFAULT_UNITS_ALTITUDE,
     DEFAULT_UNITS_DISTANCE,
     DEFAULT_UNITS_SPEED,
     DEFAULT_UNITS_TEMPERATURE,
+    MAX_SMOOTH_OVERLAY_FPS,
+    OVERLAY_ONLY_SMOOTH_FPS,
     PYCAIRO_INSTALL_HINT,
     UNIT_OPTIONS,
     is_pycairo_available,
@@ -34,6 +37,7 @@ from gpstitch.scripts.gopro_dashboard_wrapper import (
     TS_DJI_META_SOURCE_ARG,
     TS_NOVATEK_SOURCE_ARG,
     TS_ODO_OFFSET_ARG,
+    TS_OVERLAY_FPS_ARG,
     TS_SRT_SOURCE_ARG,
     TS_SRT_VIDEO_ARG,
 )
@@ -1777,6 +1781,43 @@ def _convert_novatek_to_gpx(video_path: Path) -> str:
     return str(gpx_output)
 
 
+def _resolve_smooth_overlay_fps(primary) -> float | None:
+    """Overlay frame rate for smooth animation, or None if it cannot be determined.
+
+    Overlay-only renders (GPX/FIT/SRT without video) are encoded at 30 FPS by
+    gopro-dashboard, so they are drawn at that rate. Videos use their own frame
+    rate, capped at MAX_SMOOTH_OVERLAY_FPS.
+    """
+    if primary.file_type in ("gpx", "fit", "srt"):
+        return OVERLAY_ONLY_SMOOTH_FPS
+
+    metadata = primary.video_metadata
+    if metadata and metadata.frame_rate > 0:
+        fps = metadata.frame_rate
+    else:
+        # Batch render sessions are created without metadata, so probe the file.
+        fps = _probe_video_frame_rate(Path(primary.file_path))
+    return min(fps, MAX_SMOOTH_OVERLAY_FPS) if fps is not None else None
+
+
+def _probe_video_frame_rate(file_path: Path) -> float | None:
+    """Read a video's average frame rate with ffprobe."""
+    from gopro_overlay.ffmpeg import FFMPEG
+    from gopro_overlay.ffmpeg_gopro import FFMPEGGoPro
+
+    try:
+        fps = FFMPEGGoPro(FFMPEG()).find_recording(file_path).video.frame_rate()
+    except (Exception, SystemExit):
+        logger.warning("Could not probe frame rate of %s", file_path, exc_info=True)
+        return None
+    return fps if fps > 0 else None
+
+
+def _format_fps(fps: float) -> str:
+    """Format a frame rate compactly without losing NTSC precision (29.97003, 60)."""
+    return f"{fps:.7g}"
+
+
 def generate_cli_command(
     session_id: str,
     output_file: str | None,
@@ -1793,6 +1834,7 @@ def generate_cli_command(
     gps_dop_max: float = DEFAULT_GPS_DOP_MAX,
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX,
     odo_offset: float | None = None,
+    smooth_animation: bool = False,
 ) -> tuple[str, list[str]]:
     """Generate the CLI command for full video processing.
 
@@ -2085,5 +2127,19 @@ def generate_cli_command(
     # The wrapper strips this arg and patches calculate_odo() to start from offset.
     if odo_offset is not None:
         cmd_parts.append(f"{TS_ODO_OFFSET_ARG} {odo_offset:.3f}")
+
+    # Draw the overlay at the video frame rate instead of gopro-dashboard's fixed 10 FPS.
+    # The wrapper strips this arg and patches frame stepping, ffmpeg input rate and
+    # draw-time interpolation to match.
+    if smooth_animation:
+        overlay_fps = _resolve_smooth_overlay_fps(primary)
+        if overlay_fps is None:
+            logger.warning(
+                "Smooth animation requested but frame rate of %s is unknown; using %g FPS",
+                primary_path,
+                DEFAULT_OVERLAY_FPS,
+            )
+        elif overlay_fps > DEFAULT_OVERLAY_FPS:  # slower videos gain nothing over the stock rate
+            cmd_parts.append(f"{TS_OVERLAY_FPS_ARG} {_format_fps(overlay_fps)}")
 
     return " ".join(cmd_parts), temp_files

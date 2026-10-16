@@ -61,6 +61,7 @@ class RenderJobConfig(BaseModel):
     gps_dop_max: float = DEFAULT_GPS_DOP_MAX
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX
     odo_offset: float | None = None  # Initial odometer value in meters (for shared GPX batch)
+    smooth_animation: bool = False  # Draw overlay at video frame rate instead of 10 FPS
 
     @field_validator("video_time_alignment", mode="before")
     @classmethod

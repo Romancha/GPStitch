@@ -11,6 +11,9 @@ Covered patches:
 - ffmpeg_overlay_patches.py → TestFFMPEGOverlayVideoContract
 - encoding_patches.py       → TestFFMPEGInvokeContract, TestGpxLoadContract,
                               TestLoadXmlLayoutContract, TestConfigContract
+- overlay_fps_patches.py    → TestDashboardDrawLoopContract, TestFrameMetaContract,
+                              TestOverlayDrawContract, TestFFMPEGOverlayContract,
+                              TestTelemetryTypesContract
 """
 
 import inspect
@@ -447,3 +450,162 @@ class TestConfigContract:
         from gopro_overlay.config import Config
 
         assert Config(tmp_path).maybe("does-not-exist.json").content is None
+
+
+class TestDashboardDrawLoopContract:
+    """Verify the gopro-dashboard.py draw loop that overlay_fps_patches.py retimes.
+
+    The script runs as __main__ via runpy, so the patch can only reach it through
+    FrameMeta.stepper (frame timeline) and Overlay.draw (per-frame entry).
+    """
+
+    @pytest.fixture
+    def script(self):
+        from gpstitch.scripts.gopro_dashboard_wrapper import find_gopro_dashboard
+
+        path = find_gopro_dashboard()
+        assert path is not None, "gopro-dashboard.py not found"
+        return path.read_text(encoding="utf-8")
+
+    def test_frames_are_stepped_at_10_fps_with_timelapse_correction(self, script):
+        assert "frame_meta.stepper(timeunits(seconds=0.1 * timelapse_correction))" in script
+
+    def test_frames_are_drawn_through_overlay(self, script):
+        assert "Overlay(framemeta=frame_meta" in script
+        assert "overlay.draw(dt, frame)" in script
+
+    def test_stepper_is_called_once(self, script):
+        assert script.count(".stepper(") == 1
+
+
+class TestFrameMetaContract:
+    """Verify FrameMeta internals that overlay_fps_patches.py reads."""
+
+    @staticmethod
+    def _framemeta():
+        from gopro_overlay.entry import Entry
+        from gopro_overlay.framemeta import FrameMeta
+        from gopro_overlay.timeunits import timeunits
+
+        framemeta = FrameMeta()
+        for ms in (0, 100, 250):
+            framemeta.add(timeunits(millis=ms), Entry(dt=None, value=ms))
+        return framemeta
+
+    def test_framelist_and_frames(self):
+        from gopro_overlay.timeunits import timeunits
+
+        framemeta = self._framemeta()
+        framemeta.check_modified()
+        assert framemeta.framelist == [timeunits(millis=ms) for ms in (0, 100, 250)]
+        assert framemeta.frames[timeunits(millis=100)].value == 100
+
+    def test_get_returns_previous_sample(self):
+        from gopro_overlay.timeunits import timeunits
+
+        assert self._framemeta().get(timeunits(millis=180)).value == 100
+
+    def test_stepper_runs_from_zero_to_last_sample(self):
+        from gopro_overlay.timeunits import timeunits
+
+        stepper = self._framemeta().stepper(timeunits(millis=100))
+        assert [t.us for t in stepper.steps()] == [0, 100_000, 200_000]
+        assert len(stepper) == 3
+
+
+class TestOverlayDrawContract:
+    """Verify Overlay.draw, which overlay_fps_patches.py replaces to interpolate."""
+
+    def test_draw_sets_entry_from_framemeta_and_draws_scene(self):
+        from gopro_overlay.layout import Overlay
+
+        framemeta = Mock()
+        overlay = Overlay(framemeta=framemeta, create_widgets=lambda entry: [])
+        overlay.scene = Mock()
+
+        result = overlay.draw("pts", "image")
+
+        framemeta.get.assert_called_once_with("pts")
+        assert overlay.entry() is framemeta.get.return_value
+        assert result is overlay.scene.draw.return_value
+
+
+class TestFFMPEGOverlayContract:
+    """Verify the overlay-only FFMPEGOverlay command that overlay_fps_patches.py copies."""
+
+    def test_generate_streams_10_fps_raw_input_into_30_fps_output(self):
+        import datetime
+
+        from gopro_overlay.dimensions import Dimension
+        from gopro_overlay.ffmpeg_overlay import FFMPEGOverlay
+
+        ffmpeg = Mock()
+        ffmpeg.execute.return_value = iter([Mock()])
+        overlay = FFMPEGOverlay(
+            ffmpeg=ffmpeg,
+            output=Path("out.mov"),
+            overlay_size=Dimension(640, 480),
+            creation_time=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC),
+        )
+        with overlay.generate():
+            pass
+
+        execution, cmd = ffmpeg.execute.call_args.args
+        assert execution is overlay.execution
+        assert cmd == [
+            "-hide_banner",
+            "-y",
+            "-hide_banner",
+            "-loglevel",
+            "info",
+            "-f",
+            "rawvideo",
+            "-framerate",
+            "10.0",
+            "-s",
+            "640x480",
+            "-pix_fmt",
+            "rgba",
+            "-i",
+            "-",
+            "-r",
+            "30",
+            "-vcodec",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-metadata",
+            "creation_time=2026-01-01T00:00:00+00:00",
+            "out.mov",
+        ]
+
+
+class TestTelemetryTypesContract:
+    """Verify telemetry value types that overlay_fps_patches.py interpolates or holds."""
+
+    def test_gps_fixed_values(self):
+        from gopro_overlay.gpmf.gpmf import GPS_FIXED_VALUES, GPSFix
+
+        assert {GPSFix.LOCK_2D.value, GPSFix.LOCK_3D.value} == GPS_FIXED_VALUES
+
+    def test_entry_items_are_a_dict(self):
+        from gopro_overlay.entry import Entry
+
+        assert Entry(dt=None, speed=1).items == {"speed": 1}
+
+    def test_orientation_fields(self):
+        import dataclasses
+
+        from gopro_overlay.gpmf.visitors.cori import Orientation
+
+        assert [f.name for f in dataclasses.fields(Orientation)] == ["roll", "pitch", "yaw"]
+
+    def test_point_types(self):
+        from gopro_overlay.point import PintPoint3, Point, Point3
+        from gopro_overlay.units import units
+
+        point = Point(lat=1.0, lon=2.0)
+        assert (point.lat, point.lon) == (1.0, 2.0)
+        assert issubclass(PintPoint3, Point3)
+        q = units.Quantity(1, units.m)
+        assert PintPoint3(q, q, q).x == q

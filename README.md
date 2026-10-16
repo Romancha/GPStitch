@@ -25,6 +25,8 @@ powerful [gopro-overlay](https://github.com/time4tea/gopro-dashboard-overlay) li
 - **Batch Rendering** — Process multiple files with the same settings
 - **Shared GPX Batch Render** — Apply a single GPX track to multiple videos with automatic odometer offset per video
 - **Background Jobs** — Render videos in the background with progress tracking
+- **Smooth Animation** — Draw the overlay at the video frame rate (up to 60 FPS) instead of 10 FPS, with telemetry
+  interpolated between GPS samples; most visible on zoomed-in maps and gauges, renders take about 2× longer
 - **Overlay-Only Mode** — Render transparent telemetry overlays (no video) for compositing in Final Cut Pro, DaVinci
   Resolve, etc.
 - **Custom Encoding Profiles** — Use your own ffmpeg profiles from `~/.gopro-graphics/ffmpeg-profiles.json` alongside
@@ -265,6 +267,8 @@ GPStitch includes runtime patches for `gopro-overlay` that add:
 - **DJI Osmo Action GPS** — Loads embedded protobuf GPS telemetry from DJI Action cameras with GPS Bluetooth Remote
   Controller
 - **Odometer offset** — Allows odometer to start from a custom offset value for shared GPX batch rendering
+- **Smooth animation** — Draws overlay frames at the video frame rate and interpolates telemetry between samples
+  (gopro-overlay itself draws a fixed 10 FPS)
 
 Patches are applied automatically at startup. To disable:
 

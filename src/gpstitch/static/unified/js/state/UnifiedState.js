@@ -35,6 +35,8 @@ class UnifiedState {
             timeOffsetSeconds: 0,
             // FFmpeg profile (empty = default)
             ffmpegProfile: '',
+            // Draw overlay at video frame rate instead of 10 FPS (render only)
+            smoothAnimation: false,
             // GPS filter settings (less strict than CLI defaults)
             gpsDopMax: 20,      // CLI default: 10
             gpsSpeedMax: 200    // CLI default: 60 kph

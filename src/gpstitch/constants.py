@@ -75,6 +75,18 @@ DEFAULT_GPS_SPEED_MAX = 200.0  # Max speed in kph to filter outliers
 DEFAULT_GPS_TARGET_HZ = 1  # Target GPS sampling rate in Hz (1 = 1 point/sec)
 
 # =============================================================================
+# SMOOTH ANIMATION
+# =============================================================================
+# gopro-dashboard draws the overlay at a fixed 10 FPS. With smooth animation the
+# overlay follows the video frame rate, capped so high-speed footage (120/240 FPS)
+# does not multiply render time for motion the eye cannot tell apart.
+# Overlay-only renders (no video) are always encoded at 30 FPS by gopro-dashboard.
+
+DEFAULT_OVERLAY_FPS = 10.0  # gopro-dashboard's fixed draw rate
+MAX_SMOOTH_OVERLAY_FPS = 60.0
+OVERLAY_ONLY_SMOOTH_FPS = 30.0
+
+# =============================================================================
 # GPS QUALITY THRESHOLDS
 # =============================================================================
 # Based on GPS accuracy best practices:

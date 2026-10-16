@@ -42,6 +42,7 @@ async def generate_command(request: CommandRequest) -> CommandResponse:
         gpx_merge_mode=gpx_merge_mode,
         video_time_alignment=video_time_alignment,
         ffmpeg_profile=request.ffmpeg_profile,
+        smooth_animation=request.smooth_animation,
     )
 
     return CommandResponse(

@@ -48,6 +48,7 @@ class RenderJobRequest(BaseModel):
     ffmpeg_profile: str | None = None  # FFmpeg encoding profile (e.g., "mac", "nvgpu")
     gps_dop_max: float = DEFAULT_GPS_DOP_MAX
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX
+    smooth_animation: bool = False  # Draw overlay at video frame rate instead of 10 FPS
 
     @field_validator("video_time_alignment", mode="before")
     @classmethod
@@ -326,6 +327,7 @@ async def start_render(request: RenderJobRequest, background_tasks: BackgroundTa
         ffmpeg_profile=request.ffmpeg_profile,
         gps_dop_max=request.gps_dop_max,
         gps_speed_max=request.gps_speed_max,
+        smooth_animation=request.smooth_animation,
     )
 
     # Create job
@@ -455,6 +457,7 @@ class BatchRenderRequest(BaseModel):
     ffmpeg_profile: str | None = None
     gps_dop_max: float = DEFAULT_GPS_DOP_MAX
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX
+    smooth_animation: bool = False
 
     @field_validator("video_time_alignment", mode="before")
     @classmethod
@@ -655,6 +658,7 @@ async def start_batch_render(request: BatchRenderRequest, background_tasks: Back
                 gps_dop_max=request.gps_dop_max,
                 gps_speed_max=request.gps_speed_max,
                 odo_offset=odo_offset,
+                smooth_animation=request.smooth_animation,
             )
 
             # Create job with batch_id

@@ -1,5 +1,7 @@
 """API tests for render endpoints."""
 
+from unittest.mock import AsyncMock, patch
+
 
 class TestRenderJobs:
     """Tests for render job endpoints."""
@@ -74,6 +76,55 @@ class TestCommandGeneration:
         )
 
         assert response.status_code == 404
+
+
+class TestSmoothAnimation:
+    """smooth_animation reaches the render job and the generated command."""
+
+    async def test_render_start_stores_option(self, async_client, api_test_video):
+        upload_resp = await async_client.post("/api/local-file", json={"file_path": str(api_test_video)})
+        session_id = upload_resp.json()["session_id"]
+
+        with patch("gpstitch.api.render.render_service.start_render", new=AsyncMock()):
+            response = await async_client.post(
+                "/api/render/start",
+                json={
+                    "session_id": session_id,
+                    "layout": "default-1920x1080",
+                    "output_file": "/tmp/smooth_out.mp4",
+                    "smooth_animation": True,
+                },
+            )
+
+        assert response.status_code == 200
+
+        from gpstitch.services.job_manager import job_manager
+
+        job = await job_manager.get_job(response.json()["job_id"])
+        assert job.config.smooth_animation is True
+
+    async def test_command_includes_video_frame_rate(self, async_client, api_test_video):
+        upload_resp = await async_client.post("/api/local-file", json={"file_path": str(api_test_video)})
+        session_id = upload_resp.json()["session_id"]
+
+        response = await async_client.post(
+            "/api/command",
+            json={"session_id": session_id, "layout": "default-1920x1080", "smooth_animation": True},
+        )
+
+        assert response.status_code == 200
+        assert "--ts-overlay-fps 25" in response.json()["command"]
+
+    async def test_command_without_option(self, async_client, api_test_video):
+        upload_resp = await async_client.post("/api/local-file", json={"file_path": str(api_test_video)})
+        session_id = upload_resp.json()["session_id"]
+
+        response = await async_client.post(
+            "/api/command", json={"session_id": session_id, "layout": "default-1920x1080"}
+        )
+
+        assert response.status_code == 200
+        assert "--ts-overlay-fps" not in response.json()["command"]
 
 
 class TestLayoutsAndOptions:
