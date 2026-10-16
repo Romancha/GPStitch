@@ -169,6 +169,23 @@ def _read_canvas_dims_from_sidecar(layout_xml_path: str | Path) -> tuple[int, in
     return width, height
 
 
+def _resolve_canvas_dims(layout: str, layout_xml_path: str | Path | None) -> tuple[int, int]:
+    """Resolve the canvas dimensions a render should use for ``--overlay-size``.
+
+    Priority: sidecar JSON of a custom template > named layout lookup > first available
+    layout. Custom templates are passed as ``layout="xml"`` with ``layout_xml_path``, so
+    without the sidecar they never match a named layout and land on the fallback.
+    """
+    if layout_xml_path:
+        sidecar_dims = _read_canvas_dims_from_sidecar(layout_xml_path)
+        if sidecar_dims is not None:
+            return sidecar_dims
+
+    layouts = get_available_layouts()
+    layout_info = next((info for info in layouts if info.name == layout), layouts[0])
+    return layout_info.width, layout_info.height
+
+
 def _layout_requires_cairo(name: str) -> bool:
     """Check if a layout XML contains cairo widgets."""
     # Check local layouts first
@@ -1884,27 +1901,11 @@ def generate_cli_command(
         ext = get_output_extension_for_profile(ffmpeg_profile)
         output_file = os.path.join(primary_dir, f"{primary_name}_overlay{ext}")
 
-    # Get canvas dimensions for --overlay-size.
-    # Priority: sidecar JSON of a custom template > named layout lookup > fallback.
-    # The sidecar branch is the fix for the editor-to-render widget shift bug: custom
-    # templates saved from Advanced Mode store the user's canvas dimensions in a JSON
-    # file next to the XML, and those are the dimensions the widget coordinates were
-    # designed for. Without this, the fallback path silently used the first
-    # discovered built-in layout's dimensions (1920x1080), causing widgets to shift.
-    canvas_width, canvas_height = None, None
-    if primary_type == "video":
-        sidecar_dims = _read_canvas_dims_from_sidecar(layout_xml_path) if layout_xml_path else None
-        if sidecar_dims is not None:
-            canvas_width, canvas_height = sidecar_dims
-        else:
-            layout_info = None
-            for info in get_available_layouts():
-                if info.name == layout:
-                    layout_info = info
-                    break
-            if layout_info is None:
-                layout_info = get_available_layouts()[0]
-            canvas_width, canvas_height = layout_info.width, layout_info.height
+    # Get canvas dimensions for --overlay-size. Custom templates saved from Advanced Mode
+    # store the user's canvas dimensions in a sidecar JSON next to the XML; those are the
+    # dimensions the widget coordinates were designed for, in every mode (video and
+    # GPX/FIT/SRT-only alike). Otherwise widgets land outside a smaller overlay.
+    canvas_width, canvas_height = _resolve_canvas_dims(layout, layout_xml_path)
 
     # For DJI SRT: always use file-modified time alignment.
     # DJI videos don't have GoPro metadata, so --use-gpx-only is required.
@@ -1967,19 +1968,9 @@ def generate_cli_command(
                 f"--gpx {shlex.quote(secondary_path)}",
                 f"--gpx-merge {shlex.quote(gpx_merge_mode)}",
             ]
-        if canvas_width and canvas_height:
-            cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
+        cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
     elif primary_type in ("gpx", "fit", "srt"):
         # Mode 3: GPX/FIT/SRT only (overlay-only mode)
-        # Get overlay size from layout
-        layout_info = None
-        for info in get_available_layouts():
-            if info.name == layout:
-                layout_info = info
-                break
-        if layout_info is None:
-            layout_info = get_available_layouts()[0]
-
         # Convert SRT to GPX for CLI compatibility
         gpx_primary_path = primary_path
         if primary_type == "srt":
@@ -1991,7 +1982,7 @@ def generate_cli_command(
             shlex.quote(output_file),
             "--use-gpx-only",
             f"--gpx {shlex.quote(gpx_primary_path)}",
-            f"--overlay-size {layout_info.width}x{layout_info.height}",
+            f"--overlay-size {canvas_width}x{canvas_height}",
         ]
         if cli_time_alignment:
             cmd_parts.append(f"--video-time-start {shlex.quote(cli_time_alignment)}")
@@ -2010,8 +2001,7 @@ def generate_cli_command(
             f"--gpx {shlex.quote(dji_meta_gpx_path)}",
             f"--video-time-start {shlex.quote('file-modified')}",
         ]
-        if canvas_width and canvas_height:
-            cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
+        cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
     elif (
         primary_type == "video" and getattr(primary.video_metadata, "has_novatek_gps", False) is True and not secondary
     ):
@@ -2030,8 +2020,7 @@ def generate_cli_command(
             f"--gpx {shlex.quote(novatek_gpx_path)}",
             f"--video-time-start {shlex.quote('file-modified')}",
         ]
-        if canvas_width and canvas_height:
-            cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
+        cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
     else:
         # Mode 1: Video only (default - GoPro with embedded GPS)
         # Note: --video-time-start is not valid without --use-gpx-only
@@ -2040,8 +2029,7 @@ def generate_cli_command(
             shlex.quote(primary_path),
             shlex.quote(output_file),
         ]
-        if canvas_width and canvas_height:
-            cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
+        cmd_parts.append(f"--overlay-size {canvas_width}x{canvas_height}")
 
     # Handle layout - either custom XML or predefined
     if layout_xml_path:

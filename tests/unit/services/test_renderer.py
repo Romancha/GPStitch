@@ -1739,6 +1739,86 @@ class TestLayoutCommandGeneration:
 
         assert "--overlay-size 1920x1080" in cmd
 
+    def _setup_primary_only(self, mock_file_manager, file_path, file_type):
+        from gpstitch.models.schemas import FileInfo, FileRole
+
+        primary = FileInfo(
+            filename=Path(file_path).name,
+            file_path=file_path,
+            file_type=file_type,
+            role=FileRole.PRIMARY,
+        )
+        mock_file_manager.get_files.return_value = [primary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = None
+
+    @pytest.mark.parametrize(
+        ("file_path", "file_type"),
+        [("/tmp/track.gpx", "gpx"), ("/tmp/track.fit", "fit"), ("/tmp/track.srt", "srt")],
+    )
+    @patch("gpstitch.services.renderer._convert_srt_to_gpx", return_value="/tmp/converted.gpx")
+    def test_track_only_custom_template_reads_canvas_dims_from_sidecar(
+        self, _mock_convert, mock_file_manager, tmp_path, file_path, file_type
+    ):
+        """GPX/FIT/SRT-only (overlay-only) mode must use the sidecar canvas (GitHub issue #24).
+
+        Custom templates arrive as layout="xml", which matches no named layout, so this
+        mode used to fall back to 1920x1080 and render 4K widgets off the overlay.
+        """
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_primary_only(mock_file_manager, file_path, file_type)
+        xml_path = self._write_template_files(tmp_path, xml_name="Standard_4K", canvas_width=3840, canvas_height=2160)
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="xml",
+            layout_xml_path=xml_path,
+            video_time_alignment="gpx-timestamps",
+        )
+
+        assert "--overlay-size 3840x2160" in cmd, f"Expected overlay-size from sidecar, got command: {cmd}"
+        assert "--overlay-size 1920x1080" not in cmd
+
+    def test_track_only_named_layout_uses_layout_dims(self, mock_file_manager):
+        """GPX-only mode with a predefined layout still takes dims from the layout name."""
+        from gpstitch.services.renderer import generate_cli_command
+
+        self._setup_primary_only(mock_file_manager, "/tmp/track.gpx", "gpx")
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="default-3840x2160",
+            video_time_alignment="gpx-timestamps",
+        )
+
+        assert "--overlay-size 3840x2160" in cmd
+
+    def test_video_with_gpx_custom_template_reads_canvas_dims_from_sidecar(self, mock_file_manager, tmp_path):
+        """Video + GPX merge mode must also take --overlay-size from the template sidecar."""
+        from gpstitch.models.schemas import FileInfo, FileRole
+        from gpstitch.services.renderer import generate_cli_command
+
+        primary = FileInfo(filename="video.mp4", file_path="/tmp/video.mp4", file_type="video", role=FileRole.PRIMARY)
+        secondary = FileInfo(filename="track.gpx", file_path="/tmp/track.gpx", file_type="gpx", role=FileRole.SECONDARY)
+        mock_file_manager.get_files.return_value = [primary, secondary]
+        mock_file_manager.get_primary_file.return_value = primary
+        mock_file_manager.get_secondary_file.return_value = secondary
+        xml_path = self._write_template_files(tmp_path, xml_name="Standard_4K", canvas_width=3840, canvas_height=2160)
+
+        cmd, _ = generate_cli_command(
+            session_id="test",
+            output_file="/tmp/out.mp4",
+            layout="xml",
+            layout_xml_path=xml_path,
+            video_time_alignment="gpx-timestamps",
+        )
+
+        assert "--gpx-merge" in cmd
+        assert "--overlay-size 3840x2160" in cmd
+
     def test_gpstitch_local_layout_uses_layout_xml(self, mock_file_manager):
         """GPStitch custom layouts (e.g. dji-drone-*) should use --layout xml --layout-xml."""
         from gpstitch.services.renderer import generate_cli_command
