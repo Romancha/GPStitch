@@ -33,6 +33,7 @@
     --color-success: #4ecdc4;
     --color-warning: #ffd166;
     --color-error: #ef476f;
+    --color-bright-green: #32cd32;
 
     /* Widget colors */
     --color-widget-bg: rgba(79, 195, 247, 0.15);
@@ -1591,19 +1592,31 @@ select {
 
 .widget-label {
     position: absolute;
-    top: -20px;
-    left: 0;
+    top: 0;
+    right: 0;
     font-size: var(--font-size-xs);
-    background: var(--color-widget-border);
-    color: var(--color-bg-app);
+    background: var(--color-warning);
+    color: var(--color-text-inverse);
     padding: 2px 6px;
     border-radius: 2px;
     white-space: nowrap;
+    z-index: 1;
+    opacity: 0.5;
+}
+
+.canvas-widget.container > .widget-label {
+    top: -20px;
+    left: 0;
+    right: auto;
+    background: var(--color-widget-border);
+    color: var(--color-bg-app);
+    z-index: 10;
 }
 
 .canvas-widget.selected .widget-label {
-    background: var(--color-widget-selected);
-    color: var(--color-bg-app);
+    background: var(--color-bright-green);
+    color: var(--color-text-inverse);
+    opacity: 1;
 }
 
 /* Resize Handles */
@@ -1664,18 +1677,38 @@ select {
 }
 
 .layer-icon {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
     background: var(--color-bg-app);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
+}
+
+.layer-name-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .layer-name {
-    flex: 1;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.layer-subtype {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--color-text-secondary);
+    opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1684,6 +1717,8 @@ select {
 .layer-actions {
     display: flex;
     gap: var(--space-1);
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .layer-action {
