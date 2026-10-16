@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -576,25 +576,14 @@ wheels = [
 ]
 
 [[package]]
-name = "geotiler"
-version = "0.15.0"
+name = "gopro-overlay"
+version = "0.134.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
     { name = "cytoolz" },
-    { name = "pillow" },
-    { name = "setuptools" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/ee/e4/eb8cc5725f20fcd65a4f494780726fe14c795b1240e2f17592743b7095f0/geotiler-0.15.0.tar.gz", hash = "sha256:e45e9e2fa953ba52d97ac2a77c44aa1dd81c1d8ed02fe72b260a9efaa596ea3c", size = 371102, upload-time = "2023-08-01T20:55:32.857Z" }
-
-[[package]]
-name = "gopro-overlay"
-version = "0.129.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
     { name = "fitdecode" },
     { name = "geographiclib" },
-    { name = "geotiler" },
     { name = "gpxpy" },
     { name = "pillow" },
     { name = "pint" },
@@ -602,9 +591,9 @@ dependencies = [
     { name = "requests" },
     { name = "sqlitedict" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d0/6a/27cabe6672a463deaa547329f1ef7a565a692af8d6ca986d5f69e7652dfb/gopro_overlay-0.129.0.tar.gz", hash = "sha256:794242b4f351808bb0bde1f0065abc1931bbd34779441fe7916d2e06c6f9fc96", size = 422208, upload-time = "2025-12-22T12:11:34.76Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/31/23/6527a5786911452e8038733b4f3bc35f4b88062f16dc77abb63ebec0778a/gopro_overlay-0.134.0.tar.gz", hash = "sha256:3fd6583e7e485cb1cc08d6477df186bb09ca938b7cd69930deb151b0b2b8b70e", size = 436331, upload-time = "2026-05-16T09:11:03.621Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/69/7e/1a542d1dd2a78afce6384006051c0d04617ab258075d933fb83aecfa1ea0/gopro_overlay-0.129.0-py3-none-any.whl", hash = "sha256:863ea909441efb5eb4b8320d40f510bf7ec7139c777601fb42431d341173a68c", size = 468119, upload-time = "2025-12-22T12:11:32.936Z" },
+    { url = "https://files.pythonhosted.org/packages/cd/c1/5b81e006665237b4a1a97e9d1cc8a018dbf77f6c454c5df0028a94ca5590/gopro_overlay-0.134.0-py3-none-any.whl", hash = "sha256:2e2bc6f27a67ba7f2d12ed95cd3b95b453414897b1a494521dbea05282d418c3", size = 492944, upload-time = "2026-05-16T09:11:01.958Z" },
 ]
 
 [[package]]
@@ -642,7 +631,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.143.0" },
-    { name = "gopro-overlay", specifier = "==0.129.0" },
+    { name = "gopro-overlay", specifier = "==0.134.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.1" },
     { name = "pycairo", marker = "extra == 'cairo'", specifier = ">=1.29.2" },
     { name = "pydantic", specifier = ">=2.14.1" },
