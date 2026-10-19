@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.12"
 
 [[package]]
@@ -609,7 +609,7 @@ wheels = [
 
 [[package]]
 name = "gpstitch"
-version = "0.19.1"
+version = "0.20.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

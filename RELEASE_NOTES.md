@@ -1,5 +1,18 @@
 # Release Notes
 
+## Version 0.20.0 — 19 Oct 2026
+
+### 🆕 New
+
+- **Smooth animation** — A new Config panel option draws the overlay at the video frame rate (up to 60 FPS) instead of the fixed 10 FPS, so moving maps and gauges no longer jump on 50/60 FPS video; telemetry is interpolated between samples. Off by default — without it the render is unchanged ([#26](https://github.com/Romancha/GPStitch/issues/26))
+- **Font picker** — The Config panel gained a searchable Font picker listing installed system fonts, each previewed in its own face, with recently used fonts on top. The choice applies to the preview, the generated command and single and batch renders; Auto keeps the previous behavior ([#25](https://github.com/Romancha/GPStitch/issues/25))
+
+### 🐞 Fixes
+
+- Fixed overlay-only renders (GPX/FIT/SRT without video) ignoring the custom template's canvas size and always using 1920×1080 — widgets placed on a larger canvas ended up outside the rendered overlay ([#24](https://github.com/Romancha/GPStitch/issues/24))
+
+---
+
 ## Version 0.19.1 — 15 Oct 2026
 
 ### 🐞 Fixes
