@@ -462,6 +462,27 @@ class TestExtractCustomArgs:
             _extract_custom_args()
         assert exc_info.value.code == 1
 
+    def test_extracts_font_index(self, monkeypatch):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(sys, "argv", ["script", "--font", "/f/Helvetica.ttc", "--ts-font-index", "3"])
+        result = _extract_custom_args()
+        assert result["font_index"] == 3
+        assert sys.argv == ["script", "--font", "/f/Helvetica.ttc"]
+
+    @pytest.mark.parametrize("value", ["abc", "-1", "1.5"])
+    def test_invalid_font_index_exits(self, monkeypatch, value):
+        import sys
+
+        from gpstitch.scripts.gopro_dashboard_wrapper import _extract_custom_args
+
+        monkeypatch.setattr(sys, "argv", ["script", "--ts-font-index", value])
+        with pytest.raises(SystemExit) as exc_info:
+            _extract_custom_args()
+        assert exc_info.value.code == 1
+
 
 class TestConfigIntegration:
     """Test configuration integration for patches."""

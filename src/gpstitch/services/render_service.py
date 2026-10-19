@@ -346,6 +346,8 @@ class RenderService:
                 units_distance=config.units_distance,
                 units_temperature=config.units_temperature,
                 map_style=config.map_style,
+                font=config.font,
+                font_index=config.font_index,
                 gpx_merge_mode=config.gpx_merge_mode,
                 video_time_alignment=config.video_time_alignment,
                 ffmpeg_profile=config.ffmpeg_profile,

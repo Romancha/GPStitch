@@ -268,6 +268,10 @@
                         <select id="map-style"></select>
                     </div>
                     <div class="config-group">
+                        <label for="font-picker-trigger">Font</label>
+                        <div id="font-picker" class="font-picker"></div>
+                    </div>
+                    <div class="config-group">
                         <label>FFmpeg Profile</label>
                         <select id="ffmpeg-profile"></select>
                         <small class="config-hint" id="ffmpeg-profile-hint"></small>
@@ -377,6 +381,7 @@
     <script src="/static/unified/js/components/RenderModal.js"></script>
     <script src="/static/unified/js/components/BatchRenderModal.js"></script>
     <script src="/static/unified/js/components/Toast.js"></script>
+    <script src="/static/unified/js/components/FontPicker.js"></script>
     <script src="/static/unified/js/UnifiedApp.js"></script>
     <script>
         fetch('/api/version').then(r => r.json()).then(data => {

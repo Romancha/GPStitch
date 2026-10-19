@@ -20,7 +20,7 @@ from gpstitch.constants import (
     DEFAULT_UNITS_TEMPERATURE,
 )
 from gpstitch.models.job import RenderJobConfig, migrate_video_time_alignment
-from gpstitch.models.schemas import FileRole
+from gpstitch.models.schemas import FileRole, FontSelection
 from gpstitch.services.file_manager import file_manager
 from gpstitch.services.job_manager import job_manager
 from gpstitch.services.render_service import render_service
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 # Request/Response models
-class RenderJobRequest(BaseModel):
+class RenderJobRequest(FontSelection):
     """Request to start a render job."""
 
     session_id: str
@@ -321,6 +321,8 @@ async def start_render(request: RenderJobRequest, background_tasks: BackgroundTa
         units_distance=request.units_distance,
         units_temperature=request.units_temperature,
         map_style=request.map_style,
+        font=request.font,
+        font_index=request.font_index,
         gpx_merge_mode=request.gpx_merge_mode,
         video_time_alignment=request.video_time_alignment,
         time_offset_seconds=request.time_offset_seconds,
@@ -439,7 +441,7 @@ class BatchFileInput(BaseModel):
     output_path: str | None = None  # Auto-generated if not provided
 
 
-class BatchRenderRequest(BaseModel):
+class BatchRenderRequest(FontSelection):
     """Request to start batch render jobs."""
 
     files: list[BatchFileInput] = Field(min_length=1)
@@ -651,6 +653,8 @@ async def start_batch_render(request: BatchRenderRequest, background_tasks: Back
                 units_distance=request.units_distance,
                 units_temperature=request.units_temperature,
                 map_style=request.map_style,
+                font=request.font,
+                font_index=request.font_index,
                 gpx_merge_mode=request.gpx_merge_mode,
                 video_time_alignment=request.video_time_alignment,
                 time_offset_seconds=request.time_offset_seconds,

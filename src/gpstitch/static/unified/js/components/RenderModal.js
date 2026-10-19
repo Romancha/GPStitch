@@ -156,6 +156,8 @@ class RenderModal {
                 units_distance: this.state.quickConfig.unitsDistance || 'km',
                 units_temperature: this.state.quickConfig.unitsTemperature || 'degC',
                 map_style: this.state.quickConfig.mapStyle || 'osm',
+                font: this.state.quickConfig.font,
+                font_index: this.state.quickConfig.fontIndex,
                 gpx_merge_mode: this.state.quickConfig.gpxMergeMode || 'OVERWRITE',
                 video_time_alignment: this.state.quickConfig.videoTimeAlignment || 'auto',
                 time_offset_seconds: this.state.quickConfig.timeOffsetSeconds || 0,

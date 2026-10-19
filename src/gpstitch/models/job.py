@@ -14,6 +14,7 @@ from gpstitch.constants import (
     DEFAULT_UNITS_SPEED,
     DEFAULT_UNITS_TEMPERATURE,
 )
+from gpstitch.models.schemas import FontSelection
 
 
 class JobStatus(StrEnum):
@@ -42,7 +43,7 @@ def migrate_video_time_alignment(value: str | None) -> str:
     return value
 
 
-class RenderJobConfig(BaseModel):
+class RenderJobConfig(FontSelection):
     """Configuration for a render job."""
 
     session_id: str

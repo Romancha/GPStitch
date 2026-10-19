@@ -3189,3 +3189,148 @@ select {
 .btn-warning:hover {
     background: #e6bc5c;
 }
+
+/* ============================================
+   FONT PICKER
+   ============================================ */
+
+.font-picker-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    min-height: 36px;
+    padding: var(--space-1) var(--space-3);
+    background: var(--color-bg-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-primary);
+    font-family: inherit;
+    font-size: var(--font-size-sm);
+    text-align: left;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.font-picker-trigger::after {
+    content: '';
+    margin-left: auto;
+    flex-shrink: 0;
+    border: 4px solid transparent;
+    border-top-color: var(--color-text-secondary);
+    border-bottom-width: 0;
+}
+
+.font-picker-trigger:hover {
+    border-color: var(--color-border-light);
+}
+
+.font-picker-trigger:focus-visible,
+.font-picker-trigger[aria-expanded="true"] {
+    outline: none;
+    border-color: var(--color-border-focus);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.font-picker-popover {
+    position: fixed;
+    z-index: 1050;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+}
+
+.font-picker-popover.hidden {
+    display: none;
+}
+
+.font-picker-popover .font-picker-search {
+    flex-shrink: 0;
+    border: none;
+    border-bottom: 1px solid var(--color-border);
+    border-radius: 0;
+    background: var(--color-bg-surface);
+    padding: var(--space-3);
+}
+
+.font-picker-popover .font-picker-search:focus {
+    box-shadow: none;
+}
+
+.font-picker-list {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: var(--space-1) 0;
+}
+
+.font-picker-option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 34px;
+    padding: var(--space-1) var(--space-3);
+    cursor: pointer;
+}
+
+.font-picker-option.family-start {
+    border-top: 1px solid rgba(36, 48, 82, 0.6);
+}
+
+.font-picker-option.active {
+    background: var(--color-bg-hover);
+}
+
+.font-picker-option.selected {
+    box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.font-picker-sample {
+    display: block;
+    height: 22px;
+    min-width: 0;
+    max-width: 75%;
+    object-fit: cover;
+    object-position: left center;
+}
+
+.font-picker-trigger .font-picker-sample {
+    height: 20px;
+}
+
+.font-picker-family,
+.font-picker-auto {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.font-picker-style {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.font-picker-trigger .font-picker-style {
+    margin-left: 0;
+}
+
+.font-picker-header {
+    padding: var(--space-2) var(--space-3) var(--space-1);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.font-picker-message {
+    padding: var(--space-3);
+    color: var(--color-text-muted);
+    text-align: center;
+}

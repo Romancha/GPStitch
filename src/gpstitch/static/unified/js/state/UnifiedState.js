@@ -29,6 +29,9 @@ class UnifiedState {
             unitsDistance: 'km',
             unitsTemperature: 'degC',
             mapStyle: 'osm',
+            // Overlay font file path + face index within a .ttc (null = auto-detect)
+            font: null,
+            fontIndex: 0,
             // GPX/FIT options
             gpxMergeMode: 'OVERWRITE',
             videoTimeAlignment: 'auto',
@@ -322,6 +325,8 @@ class UnifiedState {
             unitsDistance: this.quickConfig.unitsDistance,
             unitsTemperature: this.quickConfig.unitsTemperature,
             mapStyle: this.quickConfig.mapStyle,
+            font: this.quickConfig.font,
+            fontIndex: this.quickConfig.fontIndex,
             // GPS filter settings
             gpsDopMax: this.quickConfig.gpsDopMax,
             gpsSpeedMax: this.quickConfig.gpsSpeedMax,

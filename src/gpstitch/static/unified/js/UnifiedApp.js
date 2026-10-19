@@ -13,6 +13,7 @@ class UnifiedApp {
         this.modeToggle = null;
         this.previewDebouncer = new PreviewDebouncer(500);
         this._timeSyncAbortController = null;
+        this._fontsLoading = null; // In-flight font list request
 
         // DOM elements
         this.fileContextEl = document.getElementById('file-context');
@@ -31,6 +32,11 @@ class UnifiedApp {
         this.unitsDistanceSelect = document.getElementById('units-distance');
         this.unitsTemperatureSelect = document.getElementById('units-temperature');
         this.mapStyleSelect = document.getElementById('map-style');
+        this.fontPicker = new FontPicker(document.getElementById('font-picker'), {
+            onChange: (font) => this._handleFontChange(font),
+            // Refetch on open so fonts installed while the app is open show up
+            onOpen: () => this._loadFonts(),
+        });
         this.ffmpegProfileSelect = document.getElementById('ffmpeg-profile');
         this.ffmpegProfileHint = document.getElementById('ffmpeg-profile-hint');
         this.smoothAnimationCheckbox = document.getElementById('smooth-animation');
@@ -117,6 +123,10 @@ class UnifiedApp {
             label: s.requires_api_key ? `${s.display_name} (API key)` : s.display_name
         })), this.state.quickConfig.mapStyle);
 
+        // Load fonts in the background: the first system font scan can take a moment
+        this.fontPicker.setValue(this.state.quickConfig.font, this.state.quickConfig.fontIndex);
+        this._loadFonts();
+
         // Load FFmpeg profiles
         const profilesResponse = await fetch('/api/options/ffmpeg-profiles');
         const profilesData = await profilesResponse.json();
@@ -128,6 +138,43 @@ class UnifiedApp {
 
         // Show initial hint
         this._updateFfmpegProfileHint(this.state.quickConfig.ffmpegProfile);
+    }
+
+    /**
+     * Load installed fonts into the font picker. A saved font that is no longer
+     * installed falls back to Auto, matching what the backend does on render.
+     * Concurrent calls share one request.
+     */
+    _loadFonts() {
+        this._fontsLoading ??= this._fetchFonts().finally(() => {
+            this._fontsLoading = null;
+        });
+        return this._fontsLoading;
+    }
+
+    async _fetchFonts() {
+        try {
+            const response = await fetch('/api/options/fonts');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            this.fontPicker.setFonts(data.fonts);
+            const { font, fontIndex } = this.state.quickConfig;
+            if (!this.fontPicker.setValue(font, fontIndex)) {
+                console.warn(`Saved font ${font} (face ${fontIndex}) is not installed, using Auto`);
+                this.state.updateQuickConfig({ font: null, fontIndex: 0 });
+            }
+        } catch (error) {
+            // Keep the saved choice: renders still use it, and the backend falls back to Auto if it's gone
+            console.error('Failed to load fonts:', error);
+            this.fontPicker.setLoadFailed();
+        }
+    }
+
+    _handleFontChange(font) {
+        this.state.updateQuickConfig({ font: font ? font.path : null, fontIndex: font ? font.index : 0 });
+        // Font applies to both modes; each request is a no-op outside its own mode
+        this._requestPreview();
+        this._requestPreviewForAdvanced();
     }
 
     /**
@@ -794,6 +841,8 @@ class UnifiedApp {
                         units_distance: config.unitsDistance,
                         units_temperature: config.unitsTemperature,
                         map_style: config.mapStyle,
+                        font: config.font,
+                        font_index: config.fontIndex,
                         gps_dop_max: config.gpsDopMax,
                         gps_speed_max: config.gpsSpeedMax,
                         video_time_alignment: config.videoTimeAlignment || 'auto',
@@ -829,6 +878,8 @@ class UnifiedApp {
                         units_distance: config.unitsDistance,
                         units_temperature: config.unitsTemperature,
                         map_style: config.mapStyle,
+                        font: config.font,
+                        font_index: config.fontIndex,
                         gps_dop_max: config.gpsDopMax,
                         gps_speed_max: config.gpsSpeedMax,
                         video_time_alignment: config.videoTimeAlignment || 'auto',
@@ -1019,6 +1070,8 @@ class UnifiedApp {
                 units_distance: config.unitsDistance || 'km',
                 units_temperature: config.unitsTemperature || 'degC',
                 map_style: config.mapStyle || 'osm',
+                font: config.font,
+                font_index: config.fontIndex,
                 ffmpeg_profile: this.state.quickConfig.ffmpegProfile || null,
                 smooth_animation: this.state.quickConfig.smoothAnimation === true
             };

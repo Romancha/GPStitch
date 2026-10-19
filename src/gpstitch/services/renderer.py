@@ -35,6 +35,7 @@ from gpstitch.constants import (
 )
 from gpstitch.scripts.gopro_dashboard_wrapper import (
     TS_DJI_META_SOURCE_ARG,
+    TS_FONT_INDEX_ARG,
     TS_NOVATEK_SOURCE_ARG,
     TS_ODO_OFFSET_ARG,
     TS_OVERLAY_FPS_ARG,
@@ -76,35 +77,47 @@ _FONTS_TO_TRY = [
 ]
 
 
-def _find_available_font() -> str | None:
-    """Find an available font file. Used by both preview and CLI render."""
+def _find_available_font(font: str | None = None, font_index: int = 0) -> tuple[str | None, int]:
+    """Find the font file and face index to render with. Used by both preview and CLI render.
+
+    A user-selected ``font`` (with ``font_index`` for a face of a .ttc collection) wins
+    when it still loads; otherwise (not chosen, or uninstalled since) the first available
+    font from ``_FONTS_TO_TRY``, face 0.
+    """
     from pathlib import Path
 
-    for font in _FONTS_TO_TRY:
-        path = Path(font)
+    if font:
+        try:
+            ImageFont.truetype(font=font, size=12, index=font_index)
+            return font, font_index
+        except OSError as e:
+            logger.warning("Selected font %s can't be loaded (%s), falling back to auto-detected font", font, e)
+
+    for candidate in _FONTS_TO_TRY:
+        path = Path(candidate)
         if path.is_absolute() and path.exists():
-            return str(path)
+            return str(path), 0
         # For non-absolute paths, try to find via font loader
         try:
             from gopro_overlay.font import load_font
 
-            load_font(font)
-            return font  # Font name is valid
+            load_font(candidate)
+            return candidate, 0  # Font name is valid
         except (OSError, ImportError):
             continue
 
-    return None
+    return None, 0
 
 
-def _load_font_with_fallback():
-    """Load font with fallback to system fonts. Uses same list as CLI."""
-    from gopro_overlay.font import load_font
-
-    for font_name in _FONTS_TO_TRY:
+def _load_font_with_fallback(font: str | None = None, font_index: int = 0):
+    """Load the font chosen by ``_find_available_font``, so preview matches the CLI render."""
+    font_path, face_index = _find_available_font(font, font_index)
+    if font_path:
         try:
-            return load_font(font_name)
-        except OSError:
-            continue
+            # Same as gopro_overlay.font.load_font (size 32), plus the face index
+            return ImageFont.truetype(font=font_path, size=32, index=face_index)
+        except OSError as e:
+            logger.warning("Could not load font %s: %s", font_path, e)
 
     # Last resort - use default PIL font
     return ImageFont.load_default()
@@ -1362,6 +1375,8 @@ def render_preview(
     gpx_path: Path | None = None,
     video_time_alignment: str | None = None,
     time_offset_seconds: int = 0,
+    font: str | None = None,
+    font_index: int = 0,
 ) -> tuple[bytes, int, int]:
     """Render a preview image for the given file and settings.
 
@@ -1441,7 +1456,7 @@ def render_preview(
 
     with MapRenderer(cache_dir, styler).open(style) as renderer:
         # Load font with fallback
-        font = _load_font_with_fallback()
+        overlay_font = _load_font_with_fallback(font, font_index)
 
         # Privacy zone
         privacy = NoPrivacyZone()
@@ -1466,7 +1481,7 @@ def render_preview(
             layout_xml,
             renderer=renderer,
             framemeta=framemeta,
-            font=font,
+            font=overlay_font,
             privacy=privacy,
             converters=converters,
         )
@@ -1505,6 +1520,8 @@ async def render_preview_from_layout(
     gpx_path: Path | None = None,
     video_time_alignment: str | None = None,
     time_offset_seconds: int = 0,
+    font: str | None = None,
+    font_index: int = 0,
 ) -> dict:
     """
     Render preview from an editor layout.
@@ -1518,6 +1535,8 @@ async def render_preview_from_layout(
         units_distance: Distance unit (km, mile)
         units_temperature: Temperature unit (degC, degF)
         map_style: Map style to use
+        font: Font file path; None auto-detects
+        font_index: Face index within a .ttc font collection
 
     Returns:
         Dict with image_base64, width, height
@@ -1556,6 +1575,8 @@ async def render_preview_from_layout(
                 gpx_path,
                 video_time_alignment,
                 time_offset_seconds,
+                font=font,
+                font_index=font_index,
             ),
         )
         return {
@@ -1592,6 +1613,8 @@ def _render_layout_with_data(
     gpx_path: Path | None = None,
     video_time_alignment: str | None = None,
     time_offset_seconds: int = 0,
+    font: str | None = None,
+    font_index: int = 0,
 ) -> tuple[bytes, int, int]:
     """Render layout XML with actual data from file."""
     from gopro_overlay.ffmpeg import FFMPEG
@@ -1644,7 +1667,7 @@ def _render_layout_with_data(
     style = map_style or "osm"
 
     with MapRenderer(cache_dir, styler).open(style) as renderer:
-        font = _load_font_with_fallback()
+        overlay_font = _load_font_with_fallback(font, font_index)
         privacy = NoPrivacyZone()
 
         if suffix in (".mp4", ".mov"):
@@ -1665,7 +1688,7 @@ def _render_layout_with_data(
             xml_content,
             renderer=renderer,
             framemeta=framemeta,
-            font=font,
+            font=overlay_font,
             privacy=privacy,
             converters=converters,
         )
@@ -1852,6 +1875,8 @@ def generate_cli_command(
     gps_speed_max: float = DEFAULT_GPS_SPEED_MAX,
     odo_offset: float | None = None,
     smooth_animation: bool = False,
+    font: str | None = None,
+    font_index: int = 0,
 ) -> tuple[str, list[str]]:
     """Generate the CLI command for full video processing.
 
@@ -2074,10 +2099,12 @@ def generate_cli_command(
     if map_style:
         cmd_parts.append(f"--map-style {shlex.quote(map_style)}")
 
-    # Add font option (auto-detect if Roboto-Medium.ttf is not available)
-    font_path = _find_available_font()
+    # Add font option: the user's choice, else auto-detect (Roboto-Medium.ttf is the CLI default)
+    font_path, face_index = _find_available_font(font, font_index)
     if font_path and font_path != "Roboto-Medium.ttf":
         cmd_parts.append(f"--font {shlex.quote(font_path)}")
+    if face_index:
+        cmd_parts.append(f"{TS_FONT_INDEX_ARG} {face_index}")
 
     # Add FFmpeg profile if specified
     if ffmpeg_profile:

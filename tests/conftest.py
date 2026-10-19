@@ -8,6 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from gpstitch.app import app
+from tests.fixtures.data import install_sample_font
 from tests.fixtures.factories import (
     create_editor_layout,
     create_file_info,
@@ -150,6 +151,12 @@ def sample_gpx_metadata():
 def sample_job_config():
     """Sample RenderJobConfig."""
     return create_render_config()
+
+
+@pytest.fixture
+def sample_font(tmp_path) -> str:
+    """Path of an installed-looking font file (JetBrains Mono Regular)."""
+    return str(install_sample_font(tmp_path / "JetBrainsMono.ttf"))
 
 
 @pytest.fixture

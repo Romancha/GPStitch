@@ -12,6 +12,8 @@ without modifying the original library. Changes include:
   when --ts-odo-offset is present — shared GPX batch render)
 - Smooth animation (overlay_fps_patches, applied conditionally via wrapper
   when --ts-overlay-fps is present — overlay drawn at the video frame rate)
+- Font face selection (font_patches, applied conditionally via wrapper
+  when --ts-font-index is present — a face of a .ttc collection passed via --font)
 """
 
 import logging

@@ -8,6 +8,7 @@ applying patches for:
 - DJI SRT camera metrics preservation (when --ts-srt-source is provided)
 - Odometer offset for shared GPX batch render (when --ts-odo-offset is provided)
 - Smooth animation: overlay drawn at a given frame rate (when --ts-overlay-fps is provided)
+- Font face within a .ttc collection (when --ts-font-index is provided)
 
 Usage:
     python gopro_dashboard_wrapper.py [gopro-dashboard.py arguments...]
@@ -39,6 +40,7 @@ TS_ODO_OFFSET_ARG = "--ts-odo-offset"
 TS_DJI_META_SOURCE_ARG = "--ts-dji-meta-source"
 TS_NOVATEK_SOURCE_ARG = "--ts-novatek-source"
 TS_OVERLAY_FPS_ARG = "--ts-overlay-fps"
+TS_FONT_INDEX_ARG = "--ts-font-index"
 
 
 def find_gopro_dashboard() -> Path | None:
@@ -82,7 +84,7 @@ def _extract_custom_args() -> dict:
 
     Returns:
         Dict with keys: srt_path, video_path, odo_offset, dji_meta_source,
-        novatek_source, overlay_fps. Values may be None.
+        novatek_source, overlay_fps, font_index. Values may be None.
     """
     result = {
         "srt_path": None,
@@ -91,6 +93,7 @@ def _extract_custom_args() -> dict:
         "dji_meta_source": None,
         "novatek_source": None,
         "overlay_fps": None,
+        "font_index": None,
     }
     new_argv = []
     i = 0
@@ -124,6 +127,18 @@ def _extract_custom_args() -> dict:
                 logger.error("Invalid %s value: %s (expected a positive number)", TS_OVERLAY_FPS_ARG, sys.argv[i + 1])
                 sys.exit(1)
             result["overlay_fps"] = fps
+            i += 2
+        elif arg == TS_FONT_INDEX_ARG and i + 1 < len(sys.argv):
+            try:
+                face_index = int(sys.argv[i + 1])
+            except ValueError:
+                face_index = -1
+            if face_index < 0:
+                logger.error(
+                    "Invalid %s value: %s (expected a non-negative integer)", TS_FONT_INDEX_ARG, sys.argv[i + 1]
+                )
+                sys.exit(1)
+            result["font_index"] = face_index
             i += 2
         else:
             new_argv.append(arg)
@@ -178,6 +193,13 @@ def main():
 
         patch_overlay_fps(custom_args["overlay_fps"])
         logger.info(f"Overlay FPS patch applied: {custom_args['overlay_fps']} FPS")
+
+    # Load a specific face of a .ttc font collection passed via --font
+    if custom_args["font_index"]:
+        from gpstitch.patches.font_patches import patch_font_index
+
+        patch_font_index(custom_args["font_index"])
+        logger.info(f"Font index patch applied: face {custom_args['font_index']}")
 
     # Find the original gopro-dashboard.py
     dashboard_script = find_gopro_dashboard()

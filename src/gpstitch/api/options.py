@@ -1,16 +1,19 @@
-"""Options API endpoints for units, map styles, and FFmpeg profiles."""
+"""Options API endpoints for units, map styles, fonts, and FFmpeg profiles."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Response
+from fastapi.concurrency import run_in_threadpool
 
 from gpstitch.models.schemas import (
     FFmpegProfileOption,
     FFmpegProfilesResponse,
+    FontsResponse,
     MapStyleOption,
     MapStylesResponse,
     UnitCategory,
     UnitOption,
     UnitOptionsResponse,
 )
+from gpstitch.services.font_service import font_service
 from gpstitch.services.renderer import (
     get_available_ffmpeg_profiles,
     get_available_map_styles,
@@ -52,6 +55,30 @@ async def get_map_styles() -> MapStylesResponse:
             for s in styles
         ]
     )
+
+
+@router.get("/options/fonts", response_model=FontsResponse)
+async def get_fonts() -> FontsResponse:
+    """Get fonts installed on the system."""
+    fonts = await run_in_threadpool(font_service.list_fonts)
+    return FontsResponse(fonts=fonts)
+
+
+@router.get("/options/fonts/{font_id}/preview.png")
+async def get_font_preview(font_id: str) -> Response:
+    """Render the font's family name in its own face for the font picker.
+
+    Rendered with PIL like the overlay itself, so every face of a .ttc collection
+    shows correctly (browsers can't pick a face out of a collection).
+    """
+    font = await run_in_threadpool(font_service.get_font, font_id)
+    if font is None:
+        raise HTTPException(status_code=404, detail="Font not found")
+    try:
+        png = await run_in_threadpool(font_service.render_preview, font)
+    except OSError as e:
+        raise HTTPException(status_code=404, detail="Font can't be rendered") from e
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "max-age=86400"})
 
 
 @router.get("/options/ffmpeg-profiles", response_model=FFmpegProfilesResponse)

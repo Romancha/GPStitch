@@ -14,6 +14,7 @@ Covered patches:
 - overlay_fps_patches.py    → TestDashboardDrawLoopContract, TestFrameMetaContract,
                               TestOverlayDrawContract, TestFFMPEGOverlayContract,
                               TestTelemetryTypesContract
+- font_patches.py           → TestLoadFontContract
 """
 
 import inspect
@@ -609,3 +610,27 @@ class TestTelemetryTypesContract:
         assert issubclass(PintPoint3, Point3)
         q = units.Quantity(1, units.m)
         assert PintPoint3(q, q, q).x == q
+
+
+class TestLoadFontContract:
+    """Verify gopro_overlay.font.load_font that font_patches.py replaces.
+
+    gopro-dashboard.py imports load_font by name when it runs (after the wrapper has
+    patched the module attribute) and loads --font through it.
+    """
+
+    def test_load_font_exists_with_expected_signature(self):
+        from gopro_overlay.font import load_font
+
+        sig = inspect.signature(load_font)
+        assert list(sig.parameters.keys()) == ["font", "size"]
+        assert sig.parameters["size"].default == 32
+
+    def test_dashboard_loads_font_option_through_load_font(self):
+        from gpstitch.scripts.gopro_dashboard_wrapper import find_gopro_dashboard
+
+        path = find_gopro_dashboard()
+        assert path is not None, "gopro-dashboard.py not found"
+        script = path.read_text(encoding="utf-8")
+        assert "from gopro_overlay.font import load_font" in script
+        assert "load_font(args.font)" in script

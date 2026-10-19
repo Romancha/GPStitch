@@ -156,6 +156,22 @@ class MapStylesResponse(BaseModel):
     styles: list[MapStyleOption]
 
 
+class FontOption(BaseModel):
+    """A single installed font face."""
+
+    id: str
+    path: str
+    index: int  # Face index within the file; non-zero only for .ttc collections
+    family: str
+    style: str
+
+
+class FontsResponse(BaseModel):
+    """Response from fonts endpoint."""
+
+    fonts: list[FontOption]
+
+
 class FFmpegProfileOption(BaseModel):
     """A single FFmpeg profile option."""
 
@@ -171,7 +187,14 @@ class FFmpegProfilesResponse(BaseModel):
     profiles: list[FFmpegProfileOption]
 
 
-class PreviewRequest(BaseModel):
+class FontSelection(BaseModel):
+    """Overlay font fields shared by preview, command and render requests."""
+
+    font: str | None = None  # Font file path; None = auto-detect
+    font_index: int = Field(default=0, ge=0)  # Face index within a .ttc font collection
+
+
+class PreviewRequest(FontSelection):
     """Request for generating a preview image."""
 
     session_id: str
@@ -197,7 +220,7 @@ class PreviewResponse(BaseModel):
     frame_time_ms: int
 
 
-class CommandRequest(BaseModel):
+class CommandRequest(FontSelection):
     """Request for generating a CLI command."""
 
     session_id: str

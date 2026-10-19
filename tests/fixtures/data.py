@@ -1,5 +1,6 @@
 """Test data constants and sample data."""
 
+import shutil
 from pathlib import Path
 
 # Sample XML layout for testing XML converter
@@ -81,3 +82,13 @@ TEST_LONG_GPS_TRACK_TZ_TEST_PATH = str(Path(__file__).parent / "videos" / "long_
 # Allowed extensions for upload
 ALLOWED_VIDEO_EXTENSIONS = [".mp4", ".MP4", ".mov", ".MOV"]
 ALLOWED_GPX_FIT_EXTENSIONS = [".gpx", ".GPX", ".fit", ".FIT"]
+
+# JetBrains Mono (OFL-1.1), the UI's own font (static/fonts) decompressed from WOFF2
+SAMPLE_FONT = Path(__file__).parent / "fonts" / "JetBrainsMono-latin.ttf"
+
+
+def install_sample_font(path: Path) -> Path:
+    """Copy the sample font (family "JetBrains Mono", style "Regular") to path."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(SAMPLE_FONT, path)
+    return path

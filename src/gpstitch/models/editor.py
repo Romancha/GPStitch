@@ -16,6 +16,7 @@ from gpstitch.constants import (
     DEFAULT_UNITS_SPEED,
     DEFAULT_UNITS_TEMPERATURE,
 )
+from gpstitch.models.schemas import FontSelection
 
 
 class PropertyType(StrEnum):
@@ -182,7 +183,7 @@ class ExportXMLResponse(BaseModel):
     filename: str
 
 
-class EditorPreviewRequest(BaseModel):
+class EditorPreviewRequest(FontSelection):
     """Request for generating preview from editor layout."""
 
     session_id: str
