@@ -251,6 +251,7 @@ Environment variables (prefix: `GPSTITCH_`):
 | `HOST`                 | `0.0.0.0`               | Server host                                            |
 | `PORT`                 | `8000`                  | Server port                                            |
 | `LOCAL_MODE`           | `true`                  | Use local file paths instead of uploads                |
+| `OUTPUT_DIR`           | `~/Movies/GPStitch`     | Render output dir for uploaded files (upload mode)     |
 | `TEMPLATES_DIR`        | `~/.gpstitch/templates` | Custom templates directory                             |
 | `GOPRO_CONFIG_DIR`     | `~/.gopro-graphics`     | gopro-overlay config dir (user `ffmpeg-profiles.json`) |
 | `ENABLE_GOPRO_PATCHES` | `true`                  | Enable runtime patches for gopro-overlay               |

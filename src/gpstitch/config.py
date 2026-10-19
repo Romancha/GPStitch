@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     file_ttl_seconds: int = 3600  # 1 hour
     max_upload_size_bytes: int = 2 * 1024 * 1024 * 1024  # 2GB
 
+    # Where renders of uploaded files are saved (upload mode only; session dirs are temporary)
+    # Set GPSTITCH_OUTPUT_DIR to override
+    output_dir: Path = Path.home() / "Movies" / "GPStitch"
+
     # Template storage directory
     templates_dir: Path = Path.home() / ".gpstitch" / "templates"
 
