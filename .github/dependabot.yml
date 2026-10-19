@@ -21,9 +21,10 @@ updates:
       # widget) imports at module load; pyproject.toml pins setuptools<82 for it.
       - dependency-name: setuptools
         versions: [">=82"]
+      # gopro-overlay is pinned exactly because patches/ depends on its
+      # internals: updates are done by hand, checking the patches against the
+      # new release (0.134.0 broke the render tests in CI, see #35).
+      - dependency-name: gopro-overlay
     groups:
       python-minor-patch:
         update-types: [minor, patch]
-        # gopro-overlay is pinned exactly because patches/ depends on its
-        # internals: every update gets its own PR and its own review.
-        exclude-patterns: ["gopro-overlay"]
