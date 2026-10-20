@@ -1,5 +1,13 @@
 # Release Notes
 
+## Version 0.20.1 — 20 Oct 2026
+
+### 🐞 Fixes
+
+- Fixed moving maps still stepping with Smooth animation at the default zoom — the map only moved after the location crossed a whole map pixel, so at zoom 16 and 50 km/h it updated about 11 times per second on 60 FPS video. Moving maps now shift and turn by fractions of a pixel on every frame, and the moving journey map scrolls the same way ([#26](https://github.com/Romancha/GPStitch/issues/26))
+
+---
+
 ## Version 0.20.0 — 19 Oct 2026
 
 ### 🆕 New
