@@ -7,7 +7,8 @@ applying patches for:
 - Enhanced FFmpeg options (audio copy, metadata preservation)
 - DJI SRT camera metrics preservation (when --ts-srt-source is provided)
 - Odometer offset for shared GPX batch render (when --ts-odo-offset is provided)
-- Smooth animation: overlay drawn at a given frame rate (when --ts-overlay-fps is provided)
+- Smooth animation: overlay drawn at a given frame rate, maps moved by fractions of a
+  pixel (when --ts-overlay-fps is provided)
 - Font face within a .ttc collection (when --ts-font-index is provided)
 
 Usage:
@@ -193,6 +194,12 @@ def main():
 
         patch_overlay_fps(custom_args["overlay_fps"])
         logger.info(f"Overlay FPS patch applied: {custom_args['overlay_fps']} FPS")
+
+        # At that rate maps move less than a pixel per frame: drop the whole-pixel steps
+        from gpstitch.patches.smooth_map_patches import patch_smooth_maps
+
+        patch_smooth_maps()
+        logger.info("Smooth map patch applied")
 
     # Load a specific face of a .ttc font collection passed via --font
     if custom_args["font_index"]:

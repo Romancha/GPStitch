@@ -26,7 +26,8 @@ powerful [gopro-overlay](https://github.com/time4tea/gopro-dashboard-overlay) li
 - **Shared GPX Batch Render** — Apply a single GPX track to multiple videos with automatic odometer offset per video
 - **Background Jobs** — Render videos in the background with progress tracking
 - **Smooth Animation** — Draw the overlay at the video frame rate (up to 60 FPS) instead of 10 FPS, with telemetry
-  interpolated between GPS samples; most visible on zoomed-in maps and gauges, renders take about 2× longer
+  interpolated between GPS samples and moving maps shifted and turned by fractions of a pixel every frame; renders
+  take about 2× longer
 - **Custom Overlay Font** — Pick any installed font for overlay text in both Quick and Advanced modes, from a
   searchable list that shows each font in its own face, including every weight of `.ttc` collections (e.g. macOS
   Helvetica Bold)
@@ -271,7 +272,8 @@ GPStitch includes runtime patches for `gopro-overlay` that add:
   Controller
 - **Odometer offset** — Allows odometer to start from a custom offset value for shared GPX batch rendering
 - **Smooth animation** — Draws overlay frames at the video frame rate and interpolates telemetry between samples
-  (gopro-overlay itself draws a fixed 10 FPS)
+  (gopro-overlay itself draws a fixed 10 FPS); moving maps are placed with sub-pixel precision instead of whole-pixel
+  steps
 - **Font face selection** — Loads a specific face of a `.ttc` font collection passed via `--font` (gopro-overlay
   always takes the first one)
 

@@ -14,6 +14,8 @@ Covered patches:
 - overlay_fps_patches.py    → TestDashboardDrawLoopContract, TestFrameMetaContract,
                               TestOverlayDrawContract, TestFFMPEGOverlayContract,
                               TestTelemetryTypesContract
+- smooth_map_patches.py     → TestMovingMapContract, TestMovingJourneyMapContract,
+                              TestGeotilerMapContract
 - font_patches.py           → TestLoadFontContract
 """
 
@@ -610,6 +612,83 @@ class TestTelemetryTypesContract:
         assert issubclass(PintPoint3, Point3)
         q = units.Quantity(1, units.m)
         assert PintPoint3(q, q, q).x == q
+
+
+class TestMovingMapContract:
+    """Verify MovingMap, whose draw smooth_map_patches.py replaces."""
+
+    def test_widget_attributes(self):
+        from gopro_overlay.point import Coordinate
+        from gopro_overlay.widgets.map import MaybeRoundedBorder, MovingMap
+
+        widget = MovingMap(at=Coordinate(1, 2), location=Mock(), azimuth=Mock(), renderer=Mock(), size=256, zoom=16)
+
+        assert (widget.size, widget.zoom, widget.rotate) == (256, 16, True)
+        assert widget.hypotenuse == 362
+        assert widget.at.tuple() == (1, 2)
+        assert isinstance(widget.border, MaybeRoundedBorder)
+        for name in ("location", "azimuth", "renderer", "cached"):
+            assert hasattr(widget, name)
+
+    def test_draw_signature(self):
+        from gopro_overlay.widgets.map import MovingMap
+
+        assert list(inspect.signature(MovingMap.draw).parameters) == ["self", "image", "draw"]
+
+    def test_redraw_marks_rotates_and_crops(self):
+        """The steps the patched draw reproduces: marker, heading rotation, crop, border."""
+        from gopro_overlay.widgets.map import MovingMap
+
+        source = inspect.getsource(MovingMap._redraw)
+        assert "draw_marker(draw, (self.half_width_height, self.half_width_height), 6)" in source
+        assert "if azimuth and self.rotate:" in source
+        assert 'azi = azimuth.to("degree").magnitude' in source
+        assert "image.rotate(angle, resample=Image.BILINEAR)" in source
+        assert "self.border.rounded(crop)" in source
+
+    def test_draw_marker_signature(self):
+        from gopro_overlay.widgets.map import draw_marker
+
+        assert list(inspect.signature(draw_marker).parameters) == ["draw", "position", "size", "fill"]
+
+
+class TestMovingJourneyMapContract:
+    """Verify MovingJourneyMap, whose draw smooth_map_patches.py replaces."""
+
+    def test_widget_attributes(self):
+        from gopro_overlay.widgets.map import MovingJourneyMap
+
+        widget = MovingJourneyMap(
+            timeseries=Mock(), privacy_zone=Mock(), location=Mock(), size=256, zoom=16, renderer=Mock()
+        )
+
+        assert widget.size == 256
+        assert widget.cached_map is None
+        assert widget.cached_map_image is None
+        assert callable(widget._redraw)
+
+    def test_draw_crops_window_at_location_and_marks_centre(self):
+        from gopro_overlay.widgets.map import MovingJourneyMap
+
+        source = inspect.getsource(MovingJourneyMap.draw)
+        assert "self.cached_map.rev_geocode((location.lon, location.lat))" in source
+        assert "view_window(self.size, map_size[0])(int(current_position_in_big_map[0]))" in source
+        assert "draw_marker(draw, (int(self.size / 2), int(self.size / 2)), 6)" in source
+
+
+class TestGeotilerMapContract:
+    """Verify the geotiler.Map placement that smooth_map_patches.py builds on."""
+
+    def test_centre_rounded_to_whole_pixel_layout(self):
+        import geotiler
+
+        centre = (4.881234, 52.361234)
+        map = geotiler.Map(center=centre, zoom=16, size=(366, 366))
+
+        assert all(isinstance(v, int) for v in (*map.origin, *map.offset))
+        x, y = map.rev_geocode(centre)
+        assert abs(x - 183) <= 0.5
+        assert abs(y - 183) <= 0.5
 
 
 class TestLoadFontContract:

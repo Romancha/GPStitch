@@ -124,6 +124,8 @@ class TestSmoothAnimationRender:
         assert "--ts-overlay-fps 25" in cmd
 
         output = _render(cmd)
+        # The default layout's moving map is drawn through the smooth map patch
+        assert "Smooth map patch applied" in output
 
         # One overlay frame per video frame over the telemetry span, not 10 per second
         expected = metadata.duration_seconds * metadata.frame_rate
