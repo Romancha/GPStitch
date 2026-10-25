@@ -7,7 +7,10 @@ class LayersPanel {
         this.container = container;
         this.state = state;
 
+        this._dragSourceId = null;
+
         this._attachStateListeners();
+        this._attachContainerDragListeners();
         this.render();
     }
 
@@ -16,6 +19,7 @@ class LayersPanel {
         this.state.on('layout:restored', () => this.render());
         this.state.on('widget:added', () => this.render());
         this.state.on('widget:removed', () => this.render());
+        this.state.on('widget:updated', () => this.render());
         this.state.on('selection:changed', () => this._updateSelection());
     }
 
@@ -49,7 +53,8 @@ class LayersPanel {
         const isSelected = this.state.selectedWidgets.has(widget.id);
         const metadata = this.state.widgetMetadataByType[widget.type];
         const icon = metadata?.icon || widget.type.charAt(0).toUpperCase();
-        const name = widget.name || metadata?.name || widget.type;
+        const displayName = widget.name || metadata?.name || widget.type;
+        const subtype = widget.name ? (metadata?.name || widget.type) : null;
         const description = metadata?.description || '';
 
         const classes = [
@@ -58,10 +63,18 @@ class LayersPanel {
             depth > 0 ? 'nested' : ''
         ].filter(c => c).join(' ');
 
+        const subtypeHtml = subtype
+            ? `<div class="layer-subtype">${this._escapeHtml(subtype)}</div>`
+            : '';
+
         let html = `
-            <div class="${classes}" data-widget-id="${widget.id}" style="padding-left: ${depth * 16 + 8}px;" title="${this._escapeHtml(description)}">
+            <div class="${classes}" data-widget-id="${widget.id}" draggable="true" style="padding-left: ${depth * 16 + 8}px;" title="${this._escapeHtml(description)}">
+                <span class="layer-drag-handle" title="Drag to reorder">⠿</span>
                 <span class="layer-icon">${icon}</span>
-                <span class="layer-name">${name}</span>
+                <div class="layer-name-group">
+                    <div class="layer-name">${this._escapeHtml(displayName)}</div>
+                    ${subtypeHtml}
+                </div>
                 <div class="layer-actions">
                     <button class="layer-action" data-action="visibility" title="${widget.visible ? 'Hide' : 'Show'}">
                         ${widget.visible ? '👁' : '🚫'}
@@ -91,6 +104,7 @@ class LayersPanel {
             // Click to select
             item.addEventListener('click', (e) => {
                 if (e.target.classList.contains('layer-action')) return;
+                if (e.target.classList.contains('layer-drag-handle')) return;
                 this.state.select(widgetId, e.shiftKey);
             });
 
@@ -113,6 +127,47 @@ class LayersPanel {
                     }
                 });
             });
+
+            // Drag-and-drop — reordering (dragstart/dragend per item)
+            item.addEventListener('dragstart', (e) => {
+                this._dragSourceId = widgetId;
+                item.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', widgetId);
+            });
+
+            item.addEventListener('dragend', () => {
+                this._dragSourceId = null;
+                item.classList.remove('dragging');
+            });
+        });
+
+    }
+
+    _attachContainerDragListeners() {
+        this.container.addEventListener('dragover', (e) => {
+            if (!this._dragSourceId) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        });
+
+        this.container.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const sourceId = this._dragSourceId;
+            if (!sourceId) return;
+
+            const targetItem = e.target.closest('.layer-item');
+            if (!targetItem || targetItem.dataset.widgetId === sourceId) return;
+
+            const targetId = targetItem.dataset.widgetId;
+            const rect = targetItem.getBoundingClientRect();
+            const isBefore = e.clientY < rect.top + rect.height / 2;
+
+            // The layers panel renders in REVERSE order (top-of-stack first).
+            // "before" visually means "after" in the real array (higher index = drawn later = on top).
+            // "after" visually means "before" in the real array.
+            const position = isBefore ? 'after' : 'before';
+            this.state.reorderWidget(sourceId, targetId, position);
         });
     }
 

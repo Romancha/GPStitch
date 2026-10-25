@@ -14,6 +14,7 @@
     --success: #4ecdc4;
     --warning: #ffd166;
     --error: #ef476f;
+    --bright-green: #32cd32;
     --widget-bg: rgba(79, 195, 247, 0.15);
     --widget-border: #4FC3F7;
     --selection: #4FC3F7;
@@ -435,18 +436,28 @@ body {
 
 .widget-label {
     position: absolute;
-    top: -20px;
-    left: 0;
+    top: 0;
+    right: 0;
     font-size: 0.7rem;
-    background: var(--widget-border);
-    color: var(--bg-canvas);
+    background: var(--warning);
+    color: var(--bg-dark);
     padding: 2px 6px;
     border-radius: 2px;
     white-space: nowrap;
+    z-index: 1;
+}
+
+.canvas-widget.container > .widget-label {
+    top: -20px;
+    left: 0;
+    right: auto;
+    background: var(--widget-border);
+    color: var(--bg-canvas);
+    z-index: 10;
 }
 
 .canvas-widget.selected .widget-label {
-    background: var(--selection);
+    background: var(--bright-green);
     color: var(--bg-dark);
 }
 
@@ -601,18 +612,38 @@ body {
 }
 
 .layer-icon {
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
     font-size: 0.6rem;
-    background: var(--bg-dark);
-    border-radius: 2px;
+    font-weight: bold;
+    background: var(--bg-canvas);
+    border-radius: 4px;
+}
+
+.layer-name-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
 }
 
 .layer-name {
-    flex: 1;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.layer-subtype {
+    display: block;
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    opacity: 0.6;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -621,6 +652,8 @@ body {
 .layer-actions {
     display: flex;
     gap: 0.25rem;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .layer-action {
@@ -640,6 +673,30 @@ body {
 .layer-action:hover {
     background: var(--bg-dark);
     color: var(--text-primary);
+}
+
+.layer-drag-handle {
+    width: 14px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    cursor: grab;
+    font-size: 0.65rem;
+    letter-spacing: -1px;
+    line-height: 1;
+    user-select: none;
+}
+
+.layer-drag-handle:active {
+    cursor: grabbing;
+}
+
+.layer-item.dragging {
+    opacity: 0.4;
 }
 
 /* Status Bar */

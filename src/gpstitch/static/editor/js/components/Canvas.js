@@ -193,6 +193,7 @@ class Canvas {
         // For center-aligned text, x is the CENTER, so box should extend both ways
         const align = widget.properties.align;
         let displayX = widget.x;
+        let displayY = widget.y;
         if (align === 'right') {
             displayX = widget.x - width;
         } else if (align === 'centre' || align === 'center') {
@@ -208,9 +209,9 @@ class Canvas {
                 // Adjust container display position to encompass children
                 // Children are positioned relative to container, so we need to offset
                 displayX = widget.x + childBounds.x;
+                displayY = widget.y + childBounds.y;
                 width = childBounds.width;
                 height = childBounds.height;
-                // Store offset so children render correctly inside the adjusted container
                 childrenOffsetX = -childBounds.x;
                 childrenOffsetY = -childBounds.y;
             }
@@ -238,7 +239,7 @@ class Canvas {
         let html = `
             <div class="${classes}"
                  data-widget-id="${widget.id}"
-                 style="left: ${displayX}px; top: ${widget.y}px; width: ${width}px; height: ${height}px;"
+                 style="left: ${displayX}px; top: ${displayY}px; width: ${width}px; height: ${height}px;"
                  ${isOutOfBounds ? 'title="Widget extends beyond canvas boundaries"' : ''}>
                 <div class="widget-label">${label}</div>
         `;

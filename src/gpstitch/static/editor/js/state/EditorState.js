@@ -339,6 +339,170 @@ class EditorState {
         }
         return false;
     }
+
+    /**
+     * Extract a widget from the tree without deleting it.
+     * Returns the widget object, or null if not found.
+     * @param {string} widgetId
+     * @returns {Object|null}
+     */
+    _extractWidget(widgetId) {
+        return this._extractWidgetRecursive(this.layout.widgets, widgetId);
+    }
+
+    _extractWidgetRecursive(widgets, widgetId) {
+        for (let i = 0; i < widgets.length; i++) {
+            if (widgets[i].id === widgetId) {
+                return widgets.splice(i, 1)[0];
+            }
+            if (widgets[i].children && widgets[i].children.length > 0) {
+                const found = this._extractWidgetRecursive(widgets[i].children, widgetId);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Find the parent array and index of a widget in the tree.
+     * Returns { parentArray, index } or null.
+     * @param {string} widgetId
+     * @returns {{ parentArray: Array, index: number }|null}
+     */
+    _findWidgetLocation(widgetId) {
+        return this._findWidgetLocationRecursive(this.layout.widgets, widgetId);
+    }
+
+    _findWidgetLocationRecursive(widgets, widgetId) {
+        for (let i = 0; i < widgets.length; i++) {
+            if (widgets[i].id === widgetId) {
+                return { parentArray: widgets, index: i };
+            }
+            if (widgets[i].children && widgets[i].children.length > 0) {
+                const found = this._findWidgetLocationRecursive(widgets[i].children, widgetId);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Check whether candidateAncestorId is an ancestor of widgetId (or equal to it).
+     * Used to prevent cyclic reparenting.
+     * @param {string} widgetId
+     * @param {string} candidateAncestorId
+     * @returns {boolean}
+     */
+    _isAncestor(widgetId, candidateAncestorId) {
+        if (widgetId === candidateAncestorId) return true;
+        const widget = this.findWidget(widgetId);
+        if (!widget || !widget.children) return false;
+        for (const child of widget.children) {
+            if (this._isAncestor(child.id, candidateAncestorId)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Reorder a widget by moving it relative to a target widget.
+     * @param {string} sourceId  Widget being dragged
+     * @param {string} targetId  Widget to drop relative to
+     * @param {'before'|'after'} position  Insert before or after target
+     */
+    reorderWidget(sourceId, targetId, position) {
+        if (!sourceId || !targetId || sourceId === targetId) return;
+
+        const widget = this._extractWidget(sourceId);
+        if (!widget) return;
+
+        const loc = this._findWidgetLocation(targetId);
+        if (!loc) {
+            // target disappeared — restore at top level
+            this.layout.widgets.push(widget);
+        } else {
+            const insertIdx = position === 'before' ? loc.index : loc.index + 1;
+            loc.parentArray.splice(insertIdx, 0, widget);
+        }
+
+        this.isDirty = true;
+        if (this.history) this.history.snapshot();
+        this.emit('widget:updated', { widgetId: sourceId, updates: {} });
+    }
+
+    /**
+     * Move a widget to a new parent (or top level).
+     * @param {string} widgetId
+     * @param {string|null} newParentId  null = top level
+     */
+    reparentWidget(widgetId, newParentId) {
+        if (widgetId === newParentId) return;
+        if (newParentId && this._isAncestor(widgetId, newParentId)) return;
+
+        const widget = this._extractWidget(widgetId);
+        if (!widget) return;
+
+        if (newParentId) {
+            const newParent = this.findWidget(newParentId);
+            if (!newParent) {
+                // Couldn't find new parent — restore at top level
+                this.layout.widgets.push(widget);
+            } else {
+                if (!newParent.children) newParent.children = [];
+                newParent.children.push(widget);
+            }
+        } else {
+            this.layout.widgets.push(widget);
+        }
+
+        this.isDirty = true;
+        if (this.history) this.history.snapshot();
+        this.emit('widget:updated', { widgetId, updates: {} });
+    }
+
+    /**
+     * Find the parent widget ID of a given widget.
+     * Returns null if the widget is at the top level.
+     * @param {string} widgetId
+     * @returns {string|null}
+     */
+    findParentId(widgetId) {
+        return this._findParentIdRecursive(this.layout.widgets, widgetId, null);
+    }
+
+    _findParentIdRecursive(widgets, widgetId, currentParentId) {
+        for (const widget of widgets) {
+            if (widget.id === widgetId) return currentParentId;
+            if (widget.children && widget.children.length > 0) {
+                const found = this._findParentIdRecursive(widget.children, widgetId, widget.id);
+                if (found !== undefined) return found;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Collect all named containers (composite/translate) in the tree.
+     * Excludes a given widget ID and its descendants.
+     * @param {string|null} excludeId
+     * @returns {Array<{id: string, name: string, type: string}>}
+     */
+    getNamedContainers(excludeId) {
+        const results = [];
+        this._collectNamedContainers(this.layout.widgets, excludeId, results);
+        return results;
+    }
+
+    _collectNamedContainers(widgets, excludeId, results) {
+        for (const widget of widgets) {
+            if (widget.id === excludeId) continue;
+            if ((widget.type === 'composite' || widget.type === 'translate' || widget.type === 'frame') && widget.name) {
+                results.push({ id: widget.id, name: widget.name, type: widget.type });
+            }
+            if (widget.children && widget.children.length > 0) {
+                this._collectNamedContainers(widget.children, excludeId, results);
+            }
+        }
+    }
 }
 
 // Export singleton
