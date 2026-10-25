@@ -1,6 +1,7 @@
 """Upload API endpoint."""
 
 import logging
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -25,6 +26,21 @@ from gpstitch.services.metadata import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _restore_mtime(file_path: Path, last_modified_ms: int | None) -> None:
+    """Apply the browser-reported original modification time to an uploaded file.
+
+    DJI time alignment relies on the video's mtime; without this the saved copy
+    would carry the upload time instead of the recording time.
+    """
+    if not last_modified_ms:
+        return
+    try:
+        ts = last_modified_ms / 1000
+        os.utime(file_path, (ts, ts))
+    except (OSError, ValueError, OverflowError) as e:
+        logger.warning(f"Could not restore mtime for {file_path}: {e}")
 
 
 @router.get("/config", response_model=ConfigResponse)
@@ -342,6 +358,7 @@ async def use_local_secondary_file(request: SecondaryFileRequest) -> UploadRespo
 async def upload_file(
     file: Annotated[UploadFile, File(...)],
     session_id: Annotated[str | None, Form()] = None,
+    last_modified: Annotated[int | None, Form()] = None,
 ) -> UploadResponse:
     """Upload a GoPro MP4, GPX, or FIT file as primary.
 
@@ -399,6 +416,8 @@ async def upload_file(
         # Create new session
         session_id = file_manager.create_session()
         file_path = file_manager.save_file(session_id, file.filename, content)
+
+    _restore_mtime(file_path, last_modified)
 
     # Determine file type
     file_type = get_file_type(file_path)
@@ -518,6 +537,7 @@ async def upload_file(
 async def upload_secondary_file(
     session_id: Annotated[str, Form(...)],
     file: Annotated[UploadFile, File(...)],
+    last_modified: Annotated[int | None, Form()] = None,
 ) -> UploadResponse:
     """Upload a secondary GPX/FIT file to existing session."""
     # Validate session exists
@@ -548,6 +568,7 @@ async def upload_secondary_file(
 
     # Save file to session
     file_path = file_manager.save_file(session_id, file.filename, content)
+    _restore_mtime(file_path, last_modified)
 
     # Determine file type and extract metadata
     file_type = get_file_type(file_path)

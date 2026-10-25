@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter, HTTPException
 
+from gpstitch.api.render import default_output_path
 from gpstitch.models.schemas import CommandRequest, CommandResponse
 from gpstitch.services.file_manager import file_manager
-from gpstitch.services.renderer import generate_cli_command
+from gpstitch.services.renderer import generate_cli_command, get_output_extension_for_profile
 
 router = APIRouter()
 
@@ -28,10 +29,16 @@ async def generate_command(request: CommandRequest) -> CommandResponse:
         gpx_merge_mode = request.gpx_fit_options.merge_mode
         video_time_alignment = request.gpx_fit_options.video_time_alignment
 
+    output_file = request.output_filename
+    if not output_file and not file_manager.is_local_session(request.session_id):
+        # Uploaded files live in a temporary dir - point the output somewhere persistent
+        ext = get_output_extension_for_profile(request.ffmpeg_profile)
+        output_file = default_output_path(request.session_id, primary_file.file_path, ext)
+
     # Generate the command (temp_files are not needed for display-only use)
     command, _temp_files = generate_cli_command(
         session_id=request.session_id,
-        output_file=request.output_filename,
+        output_file=output_file,
         layout=request.layout,
         layout_xml_path=request.layout_xml_path,
         units_speed=request.units_speed,

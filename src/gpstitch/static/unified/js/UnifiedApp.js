@@ -89,6 +89,7 @@ class UnifiedApp {
         const layoutsResponse = await fetch('/api/layouts');
         const layoutsData = await layoutsResponse.json();
         const cairoAvailable = layoutsData.cairo_available || false;
+        this.availableLayouts = layoutsData.layouts.filter(l => !(l.requires_cairo && !cairoAvailable));
         this._populateSelect(this.layoutSelect, layoutsData.layouts.map(l => ({
             value: l.name,
             label: l.requires_cairo && !cairoAvailable
@@ -419,6 +420,7 @@ class UnifiedApp {
 
         // Session changes
         this.state.on('session:changed', () => {
+            this._autoSelectLayoutForVideo();
             this._updateFileContext();
             this._requestPreview();
             this._analyzeTimeSync();
@@ -427,6 +429,7 @@ class UnifiedApp {
 
         // Files changed (secondary added/removed)
         this.state.on('files:changed', () => {
+            this._autoSelectLayoutForVideo();
             this._updateFileContext();
             this._requestPreview();
             this._analyzeTimeSync();
@@ -662,6 +665,36 @@ class UnifiedApp {
 
     _hideFileContext() {
         this.fileContextEl.classList.add('hidden');
+    }
+
+    /**
+     * Quick Mode: when a new video is loaded, switch to a layout matching its resolution.
+     * Layout coordinates are absolute pixels, so a 1080p layout on a 4K video only covers
+     * the top-left quarter. Runs once per video so manual choices are not overridden.
+     */
+    _autoSelectLayoutForVideo() {
+        const primary = this.state.getPrimaryFile?.();
+        const vm = primary?.video_metadata;
+        if (!vm?.width || !vm?.height || !this.availableLayouts) return;
+        if (this._autoLayoutVideoPath === primary.file_path) return;
+        this._autoLayoutVideoPath = primary.file_path;
+
+        const current = this.availableLayouts.find(l => l.name === this.state.quickConfig.layout);
+        if (current && current.width === vm.width && current.height === vm.height) return;
+
+        const matching = this.availableLayouts.filter(l => l.width === vm.width && l.height === vm.height);
+        if (matching.length === 0) return;
+
+        // Prefer the same layout family, then DJI layouts for SRT telemetry, then default
+        const family = (name) => name.replace(/\d{3,4}(x\d{3,4})?/, '');
+        const isSrt = this.state.getSecondaryFile?.()?.file_type === 'srt';
+        const pick = (current && matching.find(l => family(l.name) === family(current.name)))
+            || (isSrt && matching.find(l => l.name.startsWith('dji-drone')))
+            || matching.find(l => l.name.startsWith('default'))
+            || matching[0];
+
+        this.layoutSelect.value = pick.name;
+        this.state.updateQuickConfig({ layout: pick.name });
     }
 
     /**
